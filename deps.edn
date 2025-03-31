@@ -1,0 +1,2 @@
+{:deps
+ {org.bouncycastle/bcprov-jdk18on {:mvn/version "1.78"}}}
