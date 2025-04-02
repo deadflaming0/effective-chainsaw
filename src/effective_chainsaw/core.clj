@@ -67,19 +67,23 @@
                         :m 49}})
 
 (defn shake256
-  [input output-size]
+  [input output-size-in-bits] ;; assumes `input` is ready to be used
   (let [shake256 (shake256-algorithm)
         input-size (count input)
-        output (byte-array output-size)]
+        output-size-in-bytes (quot output-size-in-bits 8) ;; not sure about this, but i think shake uses the second argument as bits, not bytes
+        output (byte-array output-size-in-bytes)]
     (.update shake256 input 0 input-size)
-    (.doFinal shake256 output 0 output-size) ;; check mismatch between output-size and .doFinal
+    (.doFinal shake256 output 0 output-size-in-bytes)
     (Hex/toHexString output)))
 
-(defn konkat ;; remove this later, does not make any sense
+(defn konkat
+  "Concatenates the different input values in a single byte array.
+  For instance: H_msg(R, pk-seed, pk-root, M) = SHAKE256(R || pk-seed || pk-root || M).
+  This function acts like `||` as it varies depending on the type (byte array or string)."
   [& inputs]
   (byte-array (apply concat (map seq inputs))))
 
-(defn factories
+(defn augment-parameter-set
   [parameter-set-name]
   (let [parameters (get parameter-set->parameters parameter-set-name)
         functions (case parameter-set-name
@@ -121,15 +125,18 @@
      {:parameters parameters
       :functions functions}}))
 
+(def ps-name :slh-dsa-shake-128s)
+
 (def H_msg
-  (-> :slh-dsa-shake-128s
-      factories
-      :slh-dsa-shake-128s
+  (-> ps-name
+      augment-parameter-set
+      ps-name
       :functions
       :H_msg))
 
-(H_msg (byte-array 0x01) ;; R
-       (byte-array 0x01) ;; pk-seed
-       (byte-array 0x01) ;; pk-root
-       (byte-array 0x01) ;; M
-       )
+(def ba1 (byte-array 0x01))
+(def ba2 (byte-array 0x02))
+(def ba3 (byte-array 0x03))
+(def ba4 (byte-array 0x04))
+
+(count (H_msg ba1 ba2 ba3 ba4)) ; 60 (i.e. 30 bytes -> 240 bits)
