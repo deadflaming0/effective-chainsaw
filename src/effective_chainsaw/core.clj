@@ -4,6 +4,10 @@
            (org.bouncycastle.crypto.macs HMac)
            (org.bouncycastle.util.encoders Hex)))
 
+;; 4) functions and addressing
+
+;; 4.1) hash functions and pseudorandom functions
+
 ;; shake specific:
 (defn shake256-algorithm [] (SHAKEDigest. 256))
 
@@ -114,13 +118,13 @@
 
                     (:slh-dsa-sha2-128s
                       :slh-dsa-sha2-128f) ;; security category 1, requires ADRS implementation (and its compression)
-                    (throw (UnsupportedOperationException. "Nice game, pretty boy; but no."))
+                    (throw (UnsupportedOperationException. "Nice game, pretty boy; gtfo"))
 
                     (:slh-dsa-sha2-192s
                       :slh-dsa-sha2-192f
                       :slh-dsa-sha2-256s
                       :slh-dsa-sha2-256f) ;; security category 3 and 5, requires ADRS implementation (and its compression)
-                    (throw (UnsupportedOperationException. "Nice game, pretty boy; but no.")))]
+                    (throw (UnsupportedOperationException. "Nice game, pretty boy; gtfo")))]
     {parameter-set-name
      {:parameters parameters
       :functions functions}}))
@@ -140,3 +144,127 @@
 (def ba4 (byte-array 0x04))
 
 (count (H_msg ba1 ba2 ba3 ba4)) ; 60 (i.e. 30 bytes -> 240 bits)
+
+;; 4.2 - 4.4) addresses
+
+;; - an address (adrs) is a byte array of size 32 and conforms to word boundaries, with each word being 4 bytes long
+;; - values are encoded as unsigned integers in big-endian byte order
+;; - 1st word (4 bytes): layer address: height of an xmss tree within the hypertree
+;;   - trees in the bottom layer have height 0, the tree in the top layer has height d-1
+;; - 2nd, 3rd and 4th words (12 bytes): tree address: position of an xmss tree within a layer of the hypertree
+;;   - the leftmost tree in a layer has tree address of 0, the rightmost has tree address 2^(d-1-L)h' - 1 where L is the layer
+;; - 5th word (4 bytes): type of the address, drives the remaining 12 bytes; there are 7 different types
+;;   - every time the address type changes, the final 12 bytes are initialized to 0
+
+;; overall structure of an address: [ layer address || tree address || type || ????? ]
+
+(def addresses-types
+  {:wots-hash 0
+   :wots-pk 1
+   :tree 2
+   :fors-tree 3
+   :fors-roots 4
+   :wots-prf 5
+   :fors-prf 6})
+
+(def address-size 32)
+(def compressed-address-size 22)
+
+(defn new-address
+  []
+  (byte-array address-size))
+
+(defn ensure-correct-size!
+  ([adrs]
+   (ensure-correct-size! adrs address-size))
+  ([adrs s]
+   (let [size (alength adrs)]
+     (if (= size s)
+       adrs
+       (throw (Exception. (format "adrs does not contain %s bytes, %s has size %s" s adrs size)))))))
+
+;; member functions:
+;; set-layer-address
+;; set-tree-address
+;; set-type-and-clear
+;; set-key-pair-address
+;; set-chain-address/set-tree-height (same implementation?)
+;; set-hash-address/set-tree-index (same implementation?)
+;; get-key-pair-address: returns an integer
+;; get-tree-index: returns an integer
+
+(defn- to-byte-array [x n] ;; assumes big-endian byte order
+  (let [buffer (java.nio.ByteBuffer/allocate n)]
+    (.position buffer (- n 4))
+    (.putInt buffer x)
+    (.array buffer)))
+
+(defn- to-int [X]
+  (let [buffer (java.nio.ByteBuffer/wrap X)]
+    (.getInt buffer)))
+
+(defn- segment
+  [adrs start end]
+  (java.util.Arrays/copyOfRange adrs start end))
+
+(defn set-layer-address
+  [adrs l]
+  (ensure-correct-size!
+    (konkat
+      (to-byte-array l 4)
+      (segment adrs 4 32))))
+
+(set-layer-address (new-address) 5)
+
+(defn set-tree-address
+  [adrs t]
+  (ensure-correct-size!
+    (konkat
+      (segment adrs 0 4)
+      (to-byte-array t 12)
+      (segment adrs 16 32))))
+
+(set-tree-address (new-address) 9000)
+
+(defn set-type-and-clear
+  [adrs Y] ;; Y is a keyword converted to integer internally
+  (ensure-correct-size!
+    (konkat
+      (segment adrs 0 16)
+      (to-byte-array (get addresses-types Y) 4)
+      (to-byte-array 0 12))))
+
+(set-type-and-clear (new-address) :fors-prf)
+
+(defn set-chain-address
+  [adrs i]
+  (ensure-correct-size!
+    (konkat
+      (segment adrs 0 24)
+      (to-byte-array i 4)
+      (segment adrs 28 32))))
+
+(set-chain-address (new-address) 64)
+
+(def set-tree-height set-chain-address)
+
+(defn set-hash-address
+  [adrs i]
+  (ensure-correct-size!
+    (konkat
+      (segment adrs 0 28)
+      (to-byte-array i 4))))
+
+(def set-tree-index set-hash-address)
+
+(defn get-key-pair-address
+  [adrs]
+  (to-int (segment adrs 20 24)))
+
+(get-key-pair-address (new-address))
+
+(defn get-tree-index
+  [adrs]
+  (to-int (segment adrs 28 32)))
+
+(get-tree-index (new-address))
