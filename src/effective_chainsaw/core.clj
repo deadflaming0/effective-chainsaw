@@ -148,7 +148,7 @@
         sk-adrs' (-> sk-adrs
                      (address/set-type-and-clear :wots-prf)
                      (address/set-key-pair-address key-pair-address))
-        tmps (map (fn [i]
+        tmps (map (fn [i] ;; FIXME: this is not right
                     (let [sk-adrs'' (address/set-chain-address sk-adrs' i)
                           sk (PRF pk-seed sk-seed sk-adrs'') ;; compute secret value for chain `i`
                           adrs' (address/set-chain-address adrs i)]
@@ -162,7 +162,7 @@
 
 (wots-pkgen functions additional-values (randomness/random-bytes 16) pk-seed adrs)
 
-;; no idea how to test this, but essentially, we:
+;; no idea how to test this, but essentially:
 ;; - given a secret key, we compute the corresponding public key
 ;; - we sign the message with the secret key, applying the chain function accordingly
 ;; - we compute a candidate public key from a signature

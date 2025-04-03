@@ -16,7 +16,7 @@
 (defn shake256
   "Bytes in, bytes out."
   [input output-size-in-bits] ;; assumes input is ready to be used, properly concatenated
-  (let [shake256 (shake256-algorithm)
+  (let [shake256 (shake256-algorithm) ;; probably not a good idea, lol
         input-size (count input)
         output-size-in-bytes (quot output-size-in-bits 8)
         output (byte-array output-size-in-bytes)]

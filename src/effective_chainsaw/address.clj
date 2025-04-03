@@ -14,7 +14,7 @@
 
 ;; overall structure of an address: [ layer address || tree address || type || ????? ]
 
-(def addresses-types
+(def ^:private addresses-types
   {:wots-hash 0
    :wots-pk 1
    :tree 2
@@ -23,11 +23,7 @@
    :wots-prf 5
    :fors-prf 6})
 
-(def address-size 32) ;; understand how to deal with compressed addresses
-
-(defn new-address
-  []
-  (byte-array address-size))
+(def ^:private address-size 32) ;; understand how to deal with compressed addresses
 
 (defn- ensure-correct-size!
   [adrs]
@@ -107,3 +103,7 @@
 (defn get-tree-index
   [adrs]
   (to-int (segment adrs 28 32)))
+
+(defn new-address
+  []
+  (byte-array address-size))
