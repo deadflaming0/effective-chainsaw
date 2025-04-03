@@ -71,7 +71,7 @@
                         :m 49}})
 
 (defn shake256
-  [input output-size-in-bits] ;; assumes `input` is ready to be used
+  [input output-size-in-bits] ;; assumes `input` is ready to be used, properly concatenated
   (let [shake256 (shake256-algorithm)
         input-size (count input)
         output-size-in-bytes (quot output-size-in-bits 8) ;; not sure about this, but i think shake uses the second argument as bits, not bytes
@@ -167,31 +167,18 @@
    :wots-prf 5
    :fors-prf 6})
 
-(def address-size 32)
-(def compressed-address-size 22)
+(def address-size 32) ;; understand how to deal with compressed addresses
 
 (defn new-address
   []
   (byte-array address-size))
 
-(defn ensure-correct-size!
-  ([adrs]
-   (ensure-correct-size! adrs address-size))
-  ([adrs s]
-   (let [size (alength adrs)]
-     (if (= size s)
-       adrs
-       (throw (Exception. (format "adrs does not contain %s bytes, %s has size %s" s adrs size)))))))
-
-;; member functions:
-;; set-layer-address
-;; set-tree-address
-;; set-type-and-clear
-;; set-key-pair-address
-;; set-chain-address/set-tree-height (same implementation?)
-;; set-hash-address/set-tree-index (same implementation?)
-;; get-key-pair-address: returns an integer
-;; get-tree-index: returns an integer
+(defn- ensure-correct-size!
+  [adrs]
+  (let [size (alength adrs)]
+    (if (= size address-size)
+      adrs
+      (throw (Exception. (format "adrs does not contain %s bytes, %s has size %s" address-size adrs size))))))
 
 (defn- to-byte-array [x n] ;; assumes big-endian byte order
   (let [buffer (java.nio.ByteBuffer/allocate n)]
@@ -214,8 +201,6 @@
       (to-byte-array l 4)
       (segment adrs 4 32))))
 
-(set-layer-address (new-address) 5)
-
 (defn set-tree-address
   [adrs t]
   (ensure-correct-size!
@@ -223,8 +208,6 @@
       (segment adrs 0 4)
       (to-byte-array t 12)
       (segment adrs 16 32))))
-
-(set-tree-address (new-address) 9000)
 
 (defn set-type-and-clear
   [adrs Y] ;; Y is a keyword converted to integer internally
@@ -234,7 +217,13 @@
       (to-byte-array (get addresses-types Y) 4)
       (to-byte-array 0 12))))
 
-(set-type-and-clear (new-address) :fors-prf)
+(defn set-key-pair-address
+  [adrs i]
+  (ensure-correct-size!
+    (konkat
+      (segment adrs 0 20)
+      (to-byte-array i 4)
+      (segment adrs 24 32))))
 
 (defn set-chain-address
   [adrs i]
@@ -243,8 +232,6 @@
       (segment adrs 0 24)
       (to-byte-array i 4)
       (segment adrs 28 32))))
-
-(set-chain-address (new-address) 64)
 
 (def set-tree-height set-chain-address)
 
@@ -261,10 +248,6 @@
   [adrs]
   (to-int (segment adrs 20 24)))
 
-(get-key-pair-address (new-address))
-
 (defn get-tree-index
   [adrs]
   (to-int (segment adrs 28 32)))
-
-(get-tree-index (new-address))
