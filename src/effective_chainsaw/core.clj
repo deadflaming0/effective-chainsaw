@@ -1,5 +1,6 @@
 (ns effective-chainsaw.core
-  (:import (org.bouncycastle.crypto.digests SHA256Digest SHA512Digest SHAKEDigest)
+  (:import (java.security SecureRandom)
+           (org.bouncycastle.crypto.digests SHA256Digest SHA512Digest SHAKEDigest)
            (org.bouncycastle.crypto.generators MGF1BytesGenerator)
            (org.bouncycastle.crypto.macs HMac)
            (org.bouncycastle.util.encoders Hex)))
@@ -51,7 +52,8 @@
                         :d 22
                         :h' 3
                         :a 8
-                        :k 33 :lg_w 4
+                        :k 33
+                        :lg_w 4
                         :m 42}
    :slh-dsa-shake-256s {:n 32
                         :h 64
@@ -71,19 +73,20 @@
                         :m 49}})
 
 (defn shake256
-  [input output-size-in-bits] ;; assumes `input` is ready to be used, properly concatenated
+  "Bytes in, bytes out."
+  [input output-size-in-bits] ;; assumes input is ready to be used, properly concatenated
   (let [shake256 (shake256-algorithm)
         input-size (count input)
-        output-size-in-bytes (quot output-size-in-bits 8) ;; not sure about this, but i think shake uses the second argument as bits, not bytes
+        output-size-in-bytes (quot output-size-in-bits 8)
         output (byte-array output-size-in-bytes)]
     (.update shake256 input 0 input-size)
     (.doFinal shake256 output 0 output-size-in-bytes)
-    (Hex/toHexString output)))
+    output))
 
 (defn konkat
   "Concatenates the different input values in a single byte array.
   For instance: H_msg(R, pk-seed, pk-root, M) = SHAKE256(R || pk-seed || pk-root || M).
-  This function acts like `||` as it varies depending on the type (byte array or string)."
+  This function acts like `||` as it varies depending on the type."
   [& inputs]
   (byte-array (apply concat (map seq inputs))))
 
@@ -92,11 +95,11 @@
   (let [parameters (get parameter-set->parameters parameter-set-name)
         functions (case parameter-set-name
                     (:slh-dsa-shake-128s
-                      :slh-dsa-shake-128f
-                      :slh-dsa-shake-192s
-                      :slh-dsa-shake-192f
-                      :slh-dsa-shake-256s
-                      :slh-dsa-shake-256f) ;; shake specific
+                     :slh-dsa-shake-128f
+                     :slh-dsa-shake-192s
+                     :slh-dsa-shake-192f
+                     :slh-dsa-shake-256s
+                     :slh-dsa-shake-256f) ;; shake-specific functions
                     {:H_msg (fn [R pk-seed pk-root M]
                               (shake256 (konkat R pk-seed pk-root M)
                                         (* 8 (:m parameters))))
@@ -117,26 +120,25 @@
                                       (* 8 (:n parameters))))}
 
                     (:slh-dsa-sha2-128s
-                      :slh-dsa-sha2-128f) ;; security category 1, requires ADRS implementation (and its compression)
+                     :slh-dsa-sha2-128f) ;; security category 1, requires ADRS implementation (and its compression)
                     (throw (UnsupportedOperationException. "Nice game, pretty boy; gtfo"))
 
                     (:slh-dsa-sha2-192s
-                      :slh-dsa-sha2-192f
-                      :slh-dsa-sha2-256s
-                      :slh-dsa-sha2-256f) ;; security category 3 and 5, requires ADRS implementation (and its compression)
+                     :slh-dsa-sha2-192f
+                     :slh-dsa-sha2-256s
+                     :slh-dsa-sha2-256f) ;; security category 3 and 5, requires ADRS implementation (and its compression)
                     (throw (UnsupportedOperationException. "Nice game, pretty boy; gtfo")))]
-    {parameter-set-name
-     {:parameters parameters
-      :functions functions}}))
+    {:parameters parameters
+     :functions functions}))
 
 (def ps-name :slh-dsa-shake-128s)
 
-(def H_msg
-  (-> ps-name
-      augment-parameter-set
-      ps-name
-      :functions
-      :H_msg))
+(def augmented (-> ps-name augment-parameter-set))
+
+(def parameters (:parameters augmented))
+(def functions (:functions augmented))
+
+(def H_msg (:H_msg functions))
 
 (def ba1 (byte-array 0x01))
 (def ba2 (byte-array 0x02))
@@ -197,50 +199,50 @@
 (defn set-layer-address
   [adrs l]
   (ensure-correct-size!
-    (konkat
-      (to-byte-array l 4)
-      (segment adrs 4 32))))
+   (konkat
+    (to-byte-array l 4)
+    (segment adrs 4 32))))
 
 (defn set-tree-address
   [adrs t]
   (ensure-correct-size!
-    (konkat
-      (segment adrs 0 4)
-      (to-byte-array t 12)
-      (segment adrs 16 32))))
+   (konkat
+    (segment adrs 0 4)
+    (to-byte-array t 12)
+    (segment adrs 16 32))))
 
 (defn set-type-and-clear
   [adrs Y] ;; Y is a keyword converted to integer internally
   (ensure-correct-size!
-    (konkat
-      (segment adrs 0 16)
-      (to-byte-array (get addresses-types Y) 4)
-      (to-byte-array 0 12))))
+   (konkat
+    (segment adrs 0 16)
+    (to-byte-array (get addresses-types Y) 4)
+    (to-byte-array 0 12))))
 
 (defn set-key-pair-address
   [adrs i]
   (ensure-correct-size!
-    (konkat
-      (segment adrs 0 20)
-      (to-byte-array i 4)
-      (segment adrs 24 32))))
+   (konkat
+    (segment adrs 0 20)
+    (to-byte-array i 4)
+    (segment adrs 24 32))))
 
 (defn set-chain-address
   [adrs i]
   (ensure-correct-size!
-    (konkat
-      (segment adrs 0 24)
-      (to-byte-array i 4)
-      (segment adrs 28 32))))
+   (konkat
+    (segment adrs 0 24)
+    (to-byte-array i 4)
+    (segment adrs 28 32))))
 
 (def set-tree-height set-chain-address)
 
 (defn set-hash-address
   [adrs i]
   (ensure-correct-size!
-    (konkat
-      (segment adrs 0 28)
-      (to-byte-array i 4))))
+   (konkat
+    (segment adrs 0 28)
+    (to-byte-array i 4))))
 
 (def set-tree-index set-hash-address)
 
@@ -251,3 +253,83 @@
 (defn get-tree-index
   [adrs]
   (to-int (segment adrs 28 32)))
+
+;; 5) winternitz one-time signature plus scheme
+
+(def n (:n parameters))
+(def lg_w (:lg_w parameters))
+
+(defn- log2
+  [x]
+  (quot (Math/log x) (Math/log 2)))
+
+(defn additional-wots-values
+  "Given the two main WOTS+ parameters `n` and `lg_w`, derive four additional values: `w`, `len_1`, `len_2`, and `len`.
+  - `w` represents the length of the chain created from the secret values;
+  - `len_1` is the length of the array after conversion of the 8n-bit message into base-w integers;
+  - `len_2` is the length of the base-w checksum that is appended to the converted array."
+  [n lg_w]
+  (let [w (int (Math/pow 2 lg_w))
+        len_1 (int (Math/ceil (quot (* 8 n) lg_w)))
+        len_2 (inc (int (Math/floor (quot (log2 (* len_1 (dec w))) lg_w))))
+        len (+ len_1 len_2)]
+    {:w w
+     :len_1 len_1
+     :len_2 len_2
+     :len len}))
+
+(def additional-values (additional-wots-values n lg_w))
+
+(defn- chain
+  "Chaining function used in WOTS+."
+  [{:keys [F]} X i s pk-seed adrs]
+  (reduce (fn [tmp j]
+            (let [adrs' (set-hash-address adrs j)]
+              (F pk-seed adrs' tmp)))
+          X (range (dec (+ i s)))))
+
+(defn random-bytes
+  [n]
+  (let [seed (byte-array n)]
+    (.nextBytes (SecureRandom.) seed)
+    seed))
+
+(def X (random-bytes 16))
+(def pk-seed (random-bytes 16))
+(def adrs (new-address))
+
+(chain functions X 1 5 pk-seed adrs)
+
+(defn wots-pkgen
+  "Generates a WOTS+ public key."
+  [{:keys [PRF T_l] :as functions} {:keys [len w]} sk-seed pk-seed adrs]
+  (let [key-pair-address (get-key-pair-address adrs)
+        sk-adrs adrs ;; copy address to create key generation key address
+        sk-adrs' (-> sk-adrs
+                     (set-type-and-clear :wots-prf)
+                     (set-key-pair-address key-pair-address))
+        tmps (map (fn [i]
+                    (let [sk-adrs'' (set-chain-address sk-adrs' i)
+                          sk (PRF pk-seed sk-seed sk-adrs'') ;; compute secret value for chain `i`
+                          adrs' (set-chain-address adrs i)]
+                      (chain functions sk 0 (dec w) pk-seed adrs'))) ;; compute public value for chain `i`
+                  (range (dec len)))
+        wotspk-adrs adrs ;; copy address to create wots+ public key address
+        wotspk-adrs' (-> wotspk-adrs
+                         (set-type-and-clear :wots-pk)
+                         (set-key-pair-address key-pair-address))]
+    (T_l pk-seed wotspk-adrs' (last tmps)))) ;; compress public key
+
+(wots-pkgen functions additional-values (random-bytes 16) pk-seed adrs)
+
+;; no idea how to test this, but essentially, we:
+;; - given a secret key, we compute the corresponding public key
+;; - we sign the message with the secret key, applying the chain function accordingly
+;; - we compute a candidate public key from a signature
+;; this way, we can check whether the implementation is correct, since the candidate public key would be different from the original public key
+
+;; same idea from now on: parameters + functions ("global" arguments), then "local" arguments (e.g. specific to wots+), then the remaining arguments
+
+(defn wots-sign
+  "Generates a WOTS+ signature on an n-byte message."
+  [{:keys [PRF] :as functions} {:keys [len_1 w len_2 len]} M sk-seed pk-seed adrs])
