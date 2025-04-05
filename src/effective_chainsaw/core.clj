@@ -73,13 +73,13 @@
                      :PRF_msg (fn [sk-prf opt_rand M]
                                 (primitives/shake256 (common/konkat sk-prf opt_rand M)
                                                      (* 8 (:n parameters))))
-                     :F (fn [pk-seed adrs M_1]
+                     :F (fn [pk-seed adrs M_1] ;; special case of `T_l` but `M` has size n
                           (primitives/shake256 (common/konkat pk-seed adrs M_1)
                                                (* 8 (:n parameters))))
-                     :H (fn [pk-seed adrs M_2]
+                     :H (fn [pk-seed adrs M_2] ;; special case of `T_l` but `M` has size 2n
                           (primitives/shake256 (common/konkat pk-seed adrs M_2)
                                                (* 8 (:n parameters))))
-                     :T_l (fn [pk-seed adrs M_l]
+                     :T_l (fn [pk-seed adrs M_l] ;; used when compressing WOTS+ public values into a public key
                             (primitives/shake256 (common/konkat pk-seed adrs M_l)
                                                  (* 8 (:n parameters))))}
 
@@ -96,7 +96,7 @@
      :functions functions}))
 
 (def ps-name :slh-dsa-shake-128s)
-(def augmented (-> ps-name augment-parameter-set))
+(def augmented (-> ps-name augment-parameter-set)) ;; "global" arguments
 (def parameters (:parameters augmented))
 (def functions (:functions augmented))
 
@@ -148,17 +148,18 @@
         sk-adrs' (-> sk-adrs
                      (address/set-type-and-clear :wots-prf)
                      (address/set-key-pair-address key-pair-address))
-        tmps (map (fn [i] ;; FIXME: this is not right
+        tmps (map (fn [i]
                     (let [sk-adrs'' (address/set-chain-address sk-adrs' i)
                           sk (PRF pk-seed sk-seed sk-adrs'') ;; compute secret value for chain `i`
                           adrs' (address/set-chain-address adrs i)]
                       (chain functions sk 0 (dec w) pk-seed adrs'))) ;; compute public value for chain `i`
-                  (range (dec len)))
+                  (range len))
         wotspk-adrs adrs ;; copy address to create wots+ public key address
         wotspk-adrs' (-> wotspk-adrs
                          (address/set-type-and-clear :wots-pk)
-                         (address/set-key-pair-address key-pair-address))]
-    (T_l pk-seed wotspk-adrs' (last tmps)))) ;; compress public key
+                         (address/set-key-pair-address key-pair-address))
+        pk (T_l pk-seed wotspk-adrs' tmps)] ;; compress public key
+    pk))
 
 (wots-pkgen functions additional-values (randomness/random-bytes 16) pk-seed adrs)
 
@@ -170,6 +171,60 @@
 
 ;; same idea from now on: parameters + functions ("global" arguments), then "local" arguments (e.g. specific to wots+), then the remaining arguments
 
+(defn- byte->bits
+  [b]
+  (map #(bit-and (bit-shift-right b %) 1)
+       (range 7 -1 -1)))
+
+(defn- byte-array->bits
+  [X]
+  (mapcat byte->bits X))
+
+(defn- bits->integer
+  [bits]
+  (reduce #(+ (bit-shift-left %1 1) %2) 0 bits))
+
+(defn base_2b
+  "Divides X into 2^b blocks, ending with an array of out_len length.
+  Used by WOTS+ and FORS; in the former b will be lg_w, whereas in the latter b will be a.
+  In FIPS-205 lg_w is 4, and a can be 6, 8, 9, 12, or 14."
+  [X b out_len]
+  (when-not (>= (alength X) (int (Math/ceil (quot (* out_len b) 8))))
+    (throw (Exception. (format "X is too short (size %s)!" (alength X)))))
+  (let [base (int (Math/pow 2 b))
+        something (->> X
+                       byte-array->bits
+                       (partition base)
+                       #_(map bits->integer))]
+    something))
+
+(def M (byte-array [24, 88, -75, 123, 18, -92, 8, 90, -27, 108, -66, 116, 68, -19, -26, 121,
+                    10, 98, -30, 4, 70, 5, 71, -69, 73, 56, 10, 110, 10, 93, -46, -63])) ;; shake256("banana")
+(count (base_2b M (:lg_w parameters) (:len_1 additional-values)))
+
 (defn wots-sign
   "Generates a WOTS+ signature on an n-byte message."
-  [{:keys [PRF] :as functions} {:keys [len_1 w len_2 len]} M sk-seed pk-seed adrs])
+  [{:keys [PRF] :as functions} {:keys [len_1 w len_2 len]} M sk-seed pk-seed adrs]
+  ;; 1) convert the n-byte message M into 2 arrays:
+  ;; - the first (len_1 length) is the message converted into base-w integers
+  ;; - the second (len_2 length) is the checksum, also in base-w integers, calculated from M
+  ;; 2) concatenate the 2 arrays together
+  ;; 3) for each base-w integer from this new array apply the chaining function d times, where d is the value itself
+  ;; 4) concatenate the len pieces of signature into a single one
+  ;; 5) return the final signature of length len
+
+  ;; another way of seeing this, taken from nist sp 800-208, figure 3:
+  ;; | digest/checksum | private key | signature              | public key |
+  ;; |-----------------|-------------|------------------------|------------|
+  ;; | 6 (digest)      | x0          | H^6(x0) (H applied 6x) | H^w-1(x0)  |
+  ;; | 3 (digest)      | x1          | H^3(x1)                | H^w-1(x1)  |
+  ;; | f (digest)      | x2          | H^15(x2)               | H^w-1(x2)  |
+  ;; | 1 (digest)      | x3          | H^1(x3)                | H^w-1(x3)  |
+  ;; | e (digest)      | x4          | H^14(x4)               | H^w-1(x4)  |
+  ;; | 9 (digest)      | x5          | H^9(x5)                | H^w-1(x5)  |
+  ;; | 0 (digest)      | x6          | H^0(x6) = x6           | H^w-1(x6)  |
+  ;; | b (digest)      | x7          | H^11(x7)               | H^w-1(x7)  |
+  ;; | 3 (checksum)    | x8          | H^3(x8)                | H^w-1(x8)  |
+  ;; | d (checksum)    | x9          | H^13(x9)               | H^w-1(x9)  |
+  ;; the final signature is the concatenation of all signature elements
+  )

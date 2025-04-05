@@ -1,8 +1,14 @@
 (ns effective-chainsaw.common)
 
 (defn konkat
-  "Concatenates the different input values in a single byte array.
-  For instance: H_msg(R, pk-seed, pk-root, M) = SHAKE256(R || pk-seed || pk-root || M).
-  This function acts like `||`, essentially."
+  "Concatenates byte arrays (or flat sequences of byte arrays) into a single byte array.
+  Avoids Clojure-native data structures as they can add GC overhead, boxing and intermediate sequences.
+  Does not work when input has depth > 1."
   [& inputs]
-  (byte-array (apply concat (map seq inputs))))
+  (let [result (java.io.ByteArrayOutputStream.)]
+    (doseq [input inputs]
+      (if (sequential? input)
+        (doseq [sub input]
+          (.write result sub))
+        (.write result input)))
+    (.toByteArray result)))
