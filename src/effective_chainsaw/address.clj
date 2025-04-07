@@ -25,22 +25,8 @@
 
 (def ^:private address-size 32) ;; understand how to deal with compressed addresses
 
-(defn- ensure-correct-size!
-  [adrs]
-  (let [size (alength adrs)]
-    (if (= size address-size)
-      adrs
-      (throw (Exception. (format "adrs does not contain %s bytes, %s has size %s" address-size adrs size))))))
-
-(defn- to-byte-array [x n] ;; assumes big-endian byte order
-  (let [buffer (java.nio.ByteBuffer/allocate n)]
-    (.position buffer (- n 4))
-    (.putInt buffer x)
-    (.array buffer)))
-
-(defn- to-int [X]
-  (let [buffer (java.nio.ByteBuffer/wrap X)]
-    (.getInt buffer)))
+(def ^:private ensure-correct-size!
+  (partial common/ensure-correct-size! address-size))
 
 (defn- segment
   [adrs start end]
@@ -50,7 +36,7 @@
   [adrs l]
   (ensure-correct-size!
    (common/konkat
-    (to-byte-array l 4)
+    (common/int->byte-array l 4)
     (segment adrs 4 32))))
 
 (defn set-tree-address
@@ -58,7 +44,7 @@
   (ensure-correct-size!
    (common/konkat
     (segment adrs 0 4)
-    (to-byte-array t 12)
+    (common/int->byte-array t 12)
     (segment adrs 16 32))))
 
 (defn set-type-and-clear
@@ -66,15 +52,15 @@
   (ensure-correct-size!
    (common/konkat
     (segment adrs 0 16)
-    (to-byte-array (get addresses-types Y) 4)
-    (to-byte-array 0 12))))
+    (common/int->byte-array (get addresses-types Y) 4)
+    (common/int->byte-array 0 12))))
 
 (defn set-key-pair-address
   [adrs i]
   (ensure-correct-size!
    (common/konkat
     (segment adrs 0 20)
-    (to-byte-array i 4)
+    (common/int->byte-array i 4)
     (segment adrs 24 32))))
 
 (defn set-chain-address
@@ -82,7 +68,7 @@
   (ensure-correct-size!
    (common/konkat
     (segment adrs 0 24)
-    (to-byte-array i 4)
+    (common/int->byte-array i 4)
     (segment adrs 28 32))))
 
 (def set-tree-height set-chain-address)
@@ -92,17 +78,17 @@
   (ensure-correct-size!
    (common/konkat
     (segment adrs 0 28)
-    (to-byte-array i 4))))
+    (common/int->byte-array i 4))))
 
 (def set-tree-index set-hash-address)
 
 (defn get-key-pair-address
   [adrs]
-  (to-int (segment adrs 20 24)))
+  (common/byte-array->int (segment adrs 20 24)))
 
 (defn get-tree-index
   [adrs]
-  (to-int (segment adrs 28 32)))
+  (common/byte-array->int (segment adrs 28 32)))
 
 (defn new-address
   []

@@ -171,36 +171,45 @@
 
 ;; same idea from now on: parameters + functions ("global" arguments), then "local" arguments (e.g. specific to wots+), then the remaining arguments
 
+(def M (primitives/shake256 (byte-array [0x42 0x41 0x4e 0x41 0x4e 0x41]) 128)) ;; BANANA
+
 (defn- byte->bits
   [b]
   (map #(bit-and (bit-shift-right b %) 1)
        (range 7 -1 -1)))
-
-(defn- byte-array->bits
-  [X]
-  (mapcat byte->bits X))
 
 (defn- bits->integer
   [bits]
   (reduce #(+ (bit-shift-left %1 1) %2) 0 bits))
 
 (defn base_2b
-  "Divides X into 2^b blocks, ending with an array of out_len length.
+  "Divides X into out_len blocks, each having an integer in the range [0, ..., 2^b - 1].
   Used by WOTS+ and FORS; in the former b will be lg_w, whereas in the latter b will be a.
   In FIPS-205 lg_w is 4, and a can be 6, 8, 9, 12, or 14."
   [X b out_len]
-  (when-not (>= (alength X) (int (Math/ceil (quot (* out_len b) 8))))
+  (when-not (>= (alength X) (int (Math/ceil (/ (* out_len b) 8.0)))) ;; TODO: can this be replaced by another `ensure-correct-size!` call?
     (throw (Exception. (format "X is too short (size %s)!" (alength X)))))
-  (let [base (int (Math/pow 2 b))
-        something (->> X
-                       byte-array->bits
-                       (partition base)
-                       #_(map bits->integer))]
-    something))
+  (let [chunks (map bits->integer (partition b (mapcat byte->bits X)))]
+    (common/ensure-correct-size! out_len chunks)))
 
-(def M (byte-array [24, 88, -75, 123, 18, -92, 8, 90, -27, 108, -66, 116, 68, -19, -26, 121,
-                    10, 98, -30, 4, 70, 5, 71, -69, 73, 56, 10, 110, 10, 93, -46, -63])) ;; shake256("banana")
-(count (base_2b M (:lg_w parameters) (:len_1 additional-values)))
+(def msg (base_2b M
+                  lg_w
+                  (:len_1 additional-values)))
+
+(defn checksum
+  "Calculates the checksum of chunks."
+  [chunks lg_w {:keys [w len_2]}]
+  (let [left-shift-by (mod (- 8 (mod (* len_2 lg_w) 8)) 8)
+        csum (bit-shift-left
+               (reduce (fn [accumulator i]
+                         (+ i (dec (+ accumulator w))))
+                       0 chunks)
+               left-shift-by)
+        csum-size (int (Math/ceil (/ (* len_2 lg_w) 8)))]
+    {:csum csum
+     :csum-size csum-size}))
+
+(checksum msg lg_w additional-values)
 
 (defn wots-sign
   "Generates a WOTS+ signature on an n-byte message."

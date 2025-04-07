@@ -12,3 +12,24 @@
           (.write result sub))
         (.write result input)))
     (.toByteArray result)))
+
+(defn ensure-correct-size!
+  [s input]
+  (let [size (if (.isArray (class input))
+               (alength input)
+               (count input))]
+    (if (= size s)
+      input
+      (throw (Exception. (format "Input does not contain %s elements, %s has size %s" s input size))))))
+
+(defn int->byte-array
+  [x n]
+  (let [bb (java.nio.ByteBuffer/allocate n)]
+    (.position bb (- n 4)) ;; int = 4 bytes
+    (.putInt bb x)
+    (.array bb)))
+
+(defn byte-array->int
+  [X]
+  (let [bb (java.nio.ByteBuffer/wrap X)]
+    (.getInt bb)))
