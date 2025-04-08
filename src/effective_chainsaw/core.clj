@@ -130,30 +130,29 @@
 (defn- chain
   "Chaining function used in WOTS+."
   [{:keys [F]} X i s pk-seed adrs]
-  (reduce (fn [tmp j]
-            (F pk-seed (address/set-hash-address adrs j) tmp))
+  (reduce #(F pk-seed (address/set-hash-address adrs %2) %1)
           X (range i (+ i s))))
 
 (def sk-seed (randomness/random-bytes 16))
 (def pk-seed (randomness/random-bytes 16))
 (def adrs (address/new-address))
 
-(defn wots-pkgen
+(defn generate-public-key
   "Generates a WOTS+ public key."
   [{:keys [PRF T_l] :as functions} {:keys [len w]} sk-seed pk-seed adrs]
   (let [key-pair-address (address/get-key-pair-address adrs)
         sk-adrs (-> adrs
                     (address/set-type-and-clear :wots-prf)
                     (address/set-key-pair-address key-pair-address))
-        tmps (map (fn [index]
-                    (let [sk (PRF pk-seed sk-seed (address/set-chain-address sk-adrs index))] ;; compute secret value for chain `index`
-                      (chain functions sk 0 (dec w) pk-seed (address/set-chain-address adrs index)))) ;; compute public value for chain `index`
-                  (range len))
-        wotspk-adrs (-> adrs
-                        (address/set-type-and-clear :wots-pk)
-                        (address/set-key-pair-address key-pair-address))
-        pk (T_l pk-seed wotspk-adrs tmps)] ;; compress public key
-    pk))
+        public-values (map (fn [index]
+                             (let [secret-key (PRF pk-seed sk-seed (address/set-chain-address sk-adrs index))] ;; compute secret value for chain `index`
+                               (chain functions secret-key 0 (dec w) pk-seed (address/set-chain-address adrs index)))) ;; compute public value for chain `index`
+                           (range len))
+        wots-pk-adrs (-> adrs
+                         (address/set-type-and-clear :wots-pk)
+                         (address/set-key-pair-address key-pair-address))
+        public-key (T_l pk-seed wots-pk-adrs public-values)] ;; compress public key
+    public-key))
 
 (defn- byte->bits
   [b]
@@ -177,39 +176,40 @@
   "Calculates the checksum of chunks."
   [chunks lg_w w len_2]
   (let [left-shift-by (mod (- 8 (mod (* len_2 lg_w) 8)) 8)
-        checksum (bit-shift-left
-                   (reduce (fn [accumulator i]
-                             (- i 1 (+ accumulator w)))
-                           0 chunks)
-                   left-shift-by)
+        checksum (reduce (fn [accumulator i]
+                           (- i 1 (+ accumulator w)))
+                         0 chunks)
         checksum-size (int (math/ceil (/ (* len_2 lg_w) 8)))]
-    (common/int->byte-array checksum checksum-size)))
+    (common/int->byte-array (bit-shift-left checksum left-shift-by) checksum-size)))
 
-(defn wots-sign
-  "Generates a WOTS+ signature on an n-byte message."
+(defn sign
+  "Generates a WOTS+ signature on an n-byte message.
+
+  Steps:
+  1) Convert the n-byte message M into 2 arrays:
+  - The first (len_1 length) is the message converted into base-w integers
+  - The second (len_2 length) is the checksum, also in base-w integers, calculated from previous step
+  2) Concatenate the 2 arrays together
+  3) For each base-w integer from this new array apply the chaining function d times, where d is the value itself
+  4) Concatenate the len pieces of signature into a single one
+  5) Return the final signature of length len
+
+  Another way of seeing this, taken from NISP SP 800-208, figure 3:
+  | Digest/Checksum | Private key | Signature              | Public key |
+  |-----------------|-------------|------------------------|------------|
+  | 6 (digest)      | x0          | H^6(x0) (H applied 6x) | H^w-1(x0)  |
+  | 3 (digest)      | x1          | H^3(x1)                | H^w-1(x1)  |
+  | F (digest)      | x2          | H^15(x2)               | H^w-1(x2)  |
+  | 1 (digest)      | x3          | H^1(x3)                | H^w-1(x3)  |
+  | E (digest)      | x4          | H^14(x4)               | H^w-1(x4)  |
+  | 9 (digest)      | x5          | H^9(x5)                | H^w-1(x5)  |
+  | 0 (digest)      | x6          | H^0(x6) = x6           | H^w-1(x6)  |
+  | B (digest)      | x7          | H^11(x7)               | H^w-1(x7)  |
+  | 3 (checksum)    | x8          | H^3(x8)                | H^w-1(x8)  |
+  | D (checksum)    | x9          | H^13(x9)               | H^w-1(x9)  |
+
+  The final signature is the concatenation of all signature elements."
   [{:keys [PRF] :as functions} {:keys [len_1 w len_2 len]} M sk-seed pk-seed adrs]
-  ;; 1) convert the n-byte message M into 2 arrays:
-  ;; - the first (len_1 length) is the message converted into base-w integers
-  ;; - the second (len_2 length) is the checksum, also in base-w integers, calculated from previous step
-  ;; 2) concatenate the 2 arrays together
-  ;; 3) for each base-w integer from this new array apply the chaining function d times, where d is the value itself
-  ;; 4) concatenate the len pieces of signature into a single one
-  ;; 5) return the final signature of length len
-
-  ;; another way of seeing this, taken from nist sp 800-208, figure 3:
-  ;; | digest/checksum | private key | signature              | public key |
-  ;; |-----------------|-------------|------------------------|------------|
-  ;; | 6 (digest)      | x0          | H^6(x0) (H applied 6x) | H^w-1(x0)  |
-  ;; | 3 (digest)      | x1          | H^3(x1)                | H^w-1(x1)  |
-  ;; | f (digest)      | x2          | H^15(x2)               | H^w-1(x2)  |
-  ;; | 1 (digest)      | x3          | H^1(x3)                | H^w-1(x3)  |
-  ;; | e (digest)      | x4          | H^14(x4)               | H^w-1(x4)  |
-  ;; | 9 (digest)      | x5          | H^9(x5)                | H^w-1(x5)  |
-  ;; | 0 (digest)      | x6          | H^0(x6) = x6           | H^w-1(x6)  |
-  ;; | b (digest)      | x7          | H^11(x7)               | H^w-1(x7)  |
-  ;; | 3 (checksum)    | x8          | H^3(x8)                | H^w-1(x8)  |
-  ;; | d (checksum)    | x9          | H^13(x9)               | H^w-1(x9)  |
-  ;; the final signature is the concatenation of all signature elements
   (let [message (base_2b M lg_w len_1)
         checksum (base_2b (calculate-checksum message lg_w w len_2) lg_w len_2)
         message+checksum (common/konkat message checksum)
@@ -219,41 +219,42 @@
                     (address/set-key-pair-address key-pair-address))
         signature-elements (map-indexed
                              (fn [index item]
-                               (let [sk (PRF pk-seed sk-seed (address/set-chain-address sk-adrs index))]
-                                 (chain functions sk 0 item pk-seed (address/set-chain-address adrs index))))
+                               (let [secret-key (PRF pk-seed sk-seed (address/set-chain-address sk-adrs index))]
+                                 (chain functions secret-key 0 item pk-seed (address/set-chain-address adrs index))))
                              message+checksum)]
     (common/ensure-correct-size! len signature-elements)))
 
-(defn wots-pkfromsig
+(defn compute-public-key-from-signature
   "Computes a WOTS+ public key from a message and its signature."
   [{:keys [T_l] :as functions} {:keys [len_1 w len_2 len]} signature M pk-seed adrs]
   (let [message (base_2b M lg_w len_1)
         checksum (base_2b (calculate-checksum message lg_w w len_2) lg_w len_2)
         message+checksum (common/konkat message checksum)
-        tmps (map (fn [index]
-                    (let [signature-element (nth signature index)
-                          message+checksum-element (nth message+checksum index)]
-                      (chain functions
-                             signature-element
-                             message+checksum-element
-                             (- w 1 message+checksum-element)
-                             pk-seed
-                             (address/set-chain-address adrs index))))
-                  (range len))
+        public-values (map (fn [index]
+                             (let [signature-element (nth signature index)
+                                   message+checksum-element (nth message+checksum index)]
+                               (chain functions
+                                      signature-element
+                                      message+checksum-element
+                                      (- w 1 message+checksum-element)
+                                      pk-seed
+                                      (address/set-chain-address adrs index))))
+                           (range len))
         key-pair-address (address/get-key-pair-address adrs)
-        wotspk-adrs (-> adrs
-                        (address/set-type-and-clear :wots-pk)
-                        (address/set-key-pair-address key-pair-address))
-        pk-from-signature (T_l pk-seed wotspk-adrs tmps)]
-    pk-from-signature))
+        wots-pk-adrs (-> adrs
+                         (address/set-type-and-clear :wots-pk)
+                         (address/set-key-pair-address key-pair-address))
+        candidate-public-key (T_l pk-seed wots-pk-adrs public-values)]
+    candidate-public-key))
 
-(defn wots-signature-verifies?
-  [pk pk-from-signature]
-  (java.util.Arrays/equals pk pk-from-signature))
+(defn signature-verifies?
+  "Performs a byte-wise comparison of the original and reconstructed WOTS+ public key; not secure against timing attacks."
+  [public-key candidate-public-key]
+  (java.util.Arrays/equals public-key candidate-public-key))
 
 ;; naive testing
-(let [pk (wots-pkgen functions additional-values sk-seed pk-seed adrs)
+(let [public-key (generate-public-key functions additional-values sk-seed pk-seed adrs)
       M (primitives/shake256 (byte-array [0x42 0x41 0x4e 0x41 0x4e 0x41]) 128) ;; BANANA
-      signature (wots-sign functions additional-values M sk-seed pk-seed adrs)
-      pk-from-signature (wots-pkfromsig functions additional-values signature M pk-seed adrs)]
-  (wots-signature-verifies? pk pk-from-signature))
+      signature (sign functions additional-values M sk-seed pk-seed adrs)
+      candidate-public-key (compute-public-key-from-signature functions additional-values signature M pk-seed adrs)]
+  (signature-verifies? public-key candidate-public-key))
