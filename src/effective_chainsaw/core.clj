@@ -1,5 +1,6 @@
 (ns effective-chainsaw.core
-  (:require [effective-chainsaw.address :as address]
+  (:require [clojure.math :as math]
+            [effective-chainsaw.address :as address]
             [effective-chainsaw.common :as common]
             [effective-chainsaw.primitives :as primitives]
             [effective-chainsaw.randomness :as randomness]))
@@ -107,7 +108,7 @@
 
 (defn- log2
   [x]
-  (quot (Math/log x) (Math/log 2)))
+  (/ (math/log x) (math/log 2)))
 
 (defn additional-wots-values
   "Given the two main WOTS+ parameters `n` and `lg_w`, derive four additional values: `w`, `len_1`, `len_2`, and `len`.
@@ -115,9 +116,9 @@
   - `len_1` is the length of the array after conversion of the 8n-bit message into base-w integers;
   - `len_2` is the length of the base-w checksum that is appended to the converted array."
   [n lg_w]
-  (let [w (int (Math/pow 2 lg_w))
-        len_1 (int (Math/ceil (quot (* 8 n) lg_w)))
-        len_2 (inc (int (Math/floor (quot (log2 (* len_1 (dec w))) lg_w))))
+  (let [w (int (math/pow 2 lg_w))
+        len_1 (int (math/ceil (/ (* 8 n) lg_w)))
+        len_2 (inc (int (math/floor (/ (log2 (* len_1 (dec w))) lg_w))))
         len (+ len_1 len_2)]
     {:w w
      :len_1 len_1
@@ -130,48 +131,29 @@
   "Chaining function used in WOTS+."
   [{:keys [F]} X i s pk-seed adrs]
   (reduce (fn [tmp j]
-            (let [adrs' (address/set-hash-address adrs j)]
-              (F pk-seed adrs' tmp)))
-          X (range (dec (+ i s)))))
+            (F pk-seed (address/set-hash-address adrs j) tmp))
+          X (range i (+ i s))))
 
-(def X (randomness/random-bytes 16))
+(def sk-seed (randomness/random-bytes 16))
 (def pk-seed (randomness/random-bytes 16))
 (def adrs (address/new-address))
-
-(chain functions X 1 5 pk-seed adrs)
 
 (defn wots-pkgen
   "Generates a WOTS+ public key."
   [{:keys [PRF T_l] :as functions} {:keys [len w]} sk-seed pk-seed adrs]
   (let [key-pair-address (address/get-key-pair-address adrs)
-        sk-adrs adrs ;; copy address to create key generation key address
-        sk-adrs' (-> sk-adrs
-                     (address/set-type-and-clear :wots-prf)
-                     (address/set-key-pair-address key-pair-address))
-        tmps (map (fn [i]
-                    (let [sk-adrs'' (address/set-chain-address sk-adrs' i)
-                          sk (PRF pk-seed sk-seed sk-adrs'') ;; compute secret value for chain `i`
-                          adrs' (address/set-chain-address adrs i)]
-                      (chain functions sk 0 (dec w) pk-seed adrs'))) ;; compute public value for chain `i`
+        sk-adrs (-> adrs
+                    (address/set-type-and-clear :wots-prf)
+                    (address/set-key-pair-address key-pair-address))
+        tmps (map (fn [index]
+                    (let [sk (PRF pk-seed sk-seed (address/set-chain-address sk-adrs index))] ;; compute secret value for chain `index`
+                      (chain functions sk 0 (dec w) pk-seed (address/set-chain-address adrs index)))) ;; compute public value for chain `index`
                   (range len))
-        wotspk-adrs adrs ;; copy address to create wots+ public key address
-        wotspk-adrs' (-> wotspk-adrs
-                         (address/set-type-and-clear :wots-pk)
-                         (address/set-key-pair-address key-pair-address))
-        pk (T_l pk-seed wotspk-adrs' tmps)] ;; compress public key
+        wotspk-adrs (-> adrs
+                        (address/set-type-and-clear :wots-pk)
+                        (address/set-key-pair-address key-pair-address))
+        pk (T_l pk-seed wotspk-adrs tmps)] ;; compress public key
     pk))
-
-(wots-pkgen functions additional-values (randomness/random-bytes 16) pk-seed adrs)
-
-;; no idea how to test this, but essentially:
-;; - given a secret key, we compute the corresponding public key
-;; - we sign the message with the secret key, applying the chain function accordingly
-;; - we compute a candidate public key from a signature
-;; this way, we can check whether the implementation is correct, since the candidate public key would be different from the original public key
-
-;; same idea from now on: parameters + functions ("global" arguments), then "local" arguments (e.g. specific to wots+), then the remaining arguments
-
-(def M (primitives/shake256 (byte-array [0x42 0x41 0x4e 0x41 0x4e 0x41]) 128)) ;; BANANA
 
 (defn- byte->bits
   [b]
@@ -187,36 +169,28 @@
   Used by WOTS+ and FORS; in the former b will be lg_w, whereas in the latter b will be a.
   In FIPS-205 lg_w is 4, and a can be 6, 8, 9, 12, or 14."
   [X b out_len]
-  (when-not (>= (alength X) (int (Math/ceil (/ (* out_len b) 8.0)))) ;; TODO: can this be replaced by another `ensure-correct-size!` call?
-    (throw (Exception. (format "X is too short (size %s)!" (alength X)))))
-  (let [chunks (map bits->integer (partition b (mapcat byte->bits X)))]
-    (common/ensure-correct-size! out_len chunks)))
+  (let [_ (common/ensure-correct-size! (int (math/ceil (/ (* out_len b) 8))) X)
+        chunks (map bits->integer (partition b (mapcat byte->bits X)))]
+    (take-last out_len chunks))) ;; TODO: take-last will ignore the (supposedly) zeroed lsbs, but what if they are NOT zeroed?
 
-(def msg (base_2b M
-                  lg_w
-                  (:len_1 additional-values)))
-
-(defn checksum
+(defn calculate-checksum
   "Calculates the checksum of chunks."
-  [chunks lg_w {:keys [w len_2]}]
+  [chunks lg_w w len_2]
   (let [left-shift-by (mod (- 8 (mod (* len_2 lg_w) 8)) 8)
-        csum (bit-shift-left
-               (reduce (fn [accumulator i]
-                         (+ i (dec (+ accumulator w))))
-                       0 chunks)
-               left-shift-by)
-        csum-size (int (Math/ceil (/ (* len_2 lg_w) 8)))]
-    {:csum csum
-     :csum-size csum-size}))
-
-(checksum msg lg_w additional-values)
+        checksum (bit-shift-left
+                   (reduce (fn [accumulator i]
+                             (- i 1 (+ accumulator w)))
+                           0 chunks)
+                   left-shift-by)
+        checksum-size (int (math/ceil (/ (* len_2 lg_w) 8)))]
+    (common/int->byte-array checksum checksum-size)))
 
 (defn wots-sign
   "Generates a WOTS+ signature on an n-byte message."
   [{:keys [PRF] :as functions} {:keys [len_1 w len_2 len]} M sk-seed pk-seed adrs]
   ;; 1) convert the n-byte message M into 2 arrays:
   ;; - the first (len_1 length) is the message converted into base-w integers
-  ;; - the second (len_2 length) is the checksum, also in base-w integers, calculated from M
+  ;; - the second (len_2 length) is the checksum, also in base-w integers, calculated from previous step
   ;; 2) concatenate the 2 arrays together
   ;; 3) for each base-w integer from this new array apply the chaining function d times, where d is the value itself
   ;; 4) concatenate the len pieces of signature into a single one
@@ -236,4 +210,50 @@
   ;; | 3 (checksum)    | x8          | H^3(x8)                | H^w-1(x8)  |
   ;; | d (checksum)    | x9          | H^13(x9)               | H^w-1(x9)  |
   ;; the final signature is the concatenation of all signature elements
-  )
+  (let [message (base_2b M lg_w len_1)
+        checksum (base_2b (calculate-checksum message lg_w w len_2) lg_w len_2)
+        message+checksum (common/konkat message checksum)
+        key-pair-address (address/get-key-pair-address adrs)
+        sk-adrs (-> adrs
+                    (address/set-type-and-clear :wots-prf)
+                    (address/set-key-pair-address key-pair-address))
+        signature-elements (map-indexed
+                             (fn [index item]
+                               (let [sk (PRF pk-seed sk-seed (address/set-chain-address sk-adrs index))]
+                                 (chain functions sk 0 item pk-seed (address/set-chain-address adrs index))))
+                             message+checksum)]
+    (common/ensure-correct-size! len signature-elements)))
+
+(defn wots-pkfromsig
+  "Computes a WOTS+ public key from a message and its signature."
+  [{:keys [T_l] :as functions} {:keys [len_1 w len_2 len]} signature M pk-seed adrs]
+  (let [message (base_2b M lg_w len_1)
+        checksum (base_2b (calculate-checksum message lg_w w len_2) lg_w len_2)
+        message+checksum (common/konkat message checksum)
+        tmps (map (fn [index]
+                    (let [signature-element (nth signature index)
+                          message+checksum-element (nth message+checksum index)]
+                      (chain functions
+                             signature-element
+                             message+checksum-element
+                             (- w 1 message+checksum-element)
+                             pk-seed
+                             (address/set-chain-address adrs index))))
+                  (range len))
+        key-pair-address (address/get-key-pair-address adrs)
+        wotspk-adrs (-> adrs
+                        (address/set-type-and-clear :wots-pk)
+                        (address/set-key-pair-address key-pair-address))
+        pk-from-signature (T_l pk-seed wotspk-adrs tmps)]
+    pk-from-signature))
+
+(defn wots-signature-verifies?
+  [pk pk-from-signature]
+  (java.util.Arrays/equals pk pk-from-signature))
+
+;; naive testing
+(let [pk (wots-pkgen functions additional-values sk-seed pk-seed adrs)
+      M (primitives/shake256 (byte-array [0x42 0x41 0x4e 0x41 0x4e 0x41]) 128) ;; BANANA
+      signature (wots-sign functions additional-values M sk-seed pk-seed adrs)
+      pk-from-signature (wots-pkfromsig functions additional-values signature M pk-seed adrs)]
+  (wots-signature-verifies? pk pk-from-signature))

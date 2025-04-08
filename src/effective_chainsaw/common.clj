@@ -23,13 +23,18 @@
       (throw (Exception. (format "Input does not contain %s elements, %s has size %s" s input size))))))
 
 (defn int->byte-array
+  "This is an awful implementation, I know."
   [x n]
-  (let [bb (java.nio.ByteBuffer/allocate n)]
-    (.position bb (- n 4)) ;; int = 4 bytes
-    (.putInt bb x)
-    (.array bb)))
+  (let [[result _]
+        (reduce (fn [[result total] curr]
+                  (aset-byte result (- n 1 curr) (mod total 256)) ;; :boom:?
+                  [result (bit-shift-right total 8)])
+                [(byte-array n) x]
+                (range n))]
+    result))
 
 (defn byte-array->int
+  "Replace this with something that does not uses ByteBuffer."
   [X]
   (let [bb (java.nio.ByteBuffer/wrap X)]
     (.getInt bb)))
