@@ -23,6 +23,3 @@
     (.update shake256 input 0 input-size)
     (.doFinal shake256 output 0 output-size-in-bytes)
     output))
-
-(shake256 (byte-array [0x42 0x41 0x4e 0x41 0x4e 0x41])
-          256)
