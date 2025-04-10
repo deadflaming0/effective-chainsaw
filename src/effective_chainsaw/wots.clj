@@ -7,12 +7,12 @@
   [x]
   (/ (math/log x) (math/log 2)))
 
-(defn additional-values
+(defn- get-additional-values
   "Given the two main WOTS+ parameters `n` and `lg_w`, derive four additional values: `w`, `len_1`, `len_2`, and `len`.
   - `w` represents the length of the chain created from the secret values;
   - `len_1` is the length of the array after conversion of the 8n-bit message into base-w integers;
   - `len_2` is the length of the base-w checksum that is appended to the converted array."
-  [n lg_w]
+  [{:keys [n lg_w]}]
   (let [w (int (math/pow 2 lg_w))
         len_1 (int (math/ceil (/ (* 8 n) lg_w)))
         len_2 (inc (int (math/floor (/ (log2 (* len_1 (dec w))) lg_w))))
@@ -30,8 +30,10 @@
 
 (defn generate-public-key
   "Generates a WOTS+ public key."
-  [{:keys [PRF T_l] :as functions} {:keys [len w]} sk-seed pk-seed adrs]
-  (let [key-pair-address (address/get-key-pair-address adrs)
+  [{:keys [parameters functions]} sk-seed pk-seed adrs]
+  (let [{:keys [w len]} (get-additional-values parameters)
+        {:keys [PRF T_l]} functions
+        key-pair-address (address/get-key-pair-address adrs)
         sk-adrs (-> adrs
                     (address/set-type-and-clear :wots-prf)
                     (address/set-key-pair-address key-pair-address))
@@ -100,8 +102,10 @@
   | D (checksum)    | x9          | H^13(x9)               | H^w-1(x9)  |
 
   The final signature is the concatenation of all signature elements."
-  [{:keys [PRF] :as functions} {:keys [len_1 w len_2 len]} M sk-seed pk-seed adrs]
-  (let [lg_w 4 ;; fixed for now, requires change in the api
+  [{:keys [parameters functions]} M sk-seed pk-seed adrs]
+  (let [{:keys [lg_w]} parameters
+        {:keys [w len_1 len_2 len]} (get-additional-values parameters)
+        {:keys [PRF]} functions
         message (base_2b M lg_w len_1)
         checksum (base_2b (calculate-checksum message lg_w w len_2) lg_w len_2)
         message+checksum (common/konkat message checksum)
@@ -118,8 +122,10 @@
 
 (defn compute-public-key-from-signature
   "Computes a WOTS+ public key from a message and its signature."
-  [{:keys [T_l] :as functions} {:keys [len_1 w len_2 len]} signature M pk-seed adrs]
-  (let [lg_w 4 ;; fixed for now, requires change in the api
+  [{:keys [parameters functions]} signature M pk-seed adrs]
+  (let [{:keys [lg_w]} parameters
+        {:keys [w len_1 len_2 len]} (get-additional-values parameters)
+        {:keys [T_l]} functions
         message (base_2b M lg_w len_1)
         checksum (base_2b (calculate-checksum message lg_w w len_2) lg_w len_2)
         message+checksum (common/konkat message checksum)

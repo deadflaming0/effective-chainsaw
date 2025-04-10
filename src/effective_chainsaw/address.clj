@@ -28,30 +28,26 @@
 (def ^:private ensure-correct-size!
   (partial common/ensure-correct-size! address-size))
 
-(defn- segment
-  [adrs start end]
-  (java.util.Arrays/copyOfRange adrs start end))
-
 (defn set-layer-address
   [adrs l]
   (ensure-correct-size!
    (common/konkat
     (common/int->byte-array l 4)
-    (segment adrs 4 32))))
+    (common/segment adrs 4 32))))
 
 (defn set-tree-address
   [adrs t]
   (ensure-correct-size!
    (common/konkat
-    (segment adrs 0 4)
+    (common/segment adrs 0 4)
     (common/int->byte-array t 12)
-    (segment adrs 16 32))))
+    (common/segment adrs 16 32))))
 
 (defn set-type-and-clear
   [adrs Y] ;; Y is a keyword converted to integer internally
   (ensure-correct-size!
    (common/konkat
-    (segment adrs 0 16)
+    (common/segment adrs 0 16)
     (common/int->byte-array (get addresses-types Y) 4)
     (common/int->byte-array 0 12))))
 
@@ -59,17 +55,17 @@
   [adrs i]
   (ensure-correct-size!
    (common/konkat
-    (segment adrs 0 20)
+    (common/segment adrs 0 20)
     (common/int->byte-array i 4)
-    (segment adrs 24 32))))
+    (common/segment adrs 24 32))))
 
 (defn set-chain-address
   [adrs i]
   (ensure-correct-size!
    (common/konkat
-    (segment adrs 0 24)
+    (common/segment adrs 0 24)
     (common/int->byte-array i 4)
-    (segment adrs 28 32))))
+    (common/segment adrs 28 32))))
 
 (def set-tree-height set-chain-address)
 
@@ -77,18 +73,18 @@
   [adrs i]
   (ensure-correct-size!
    (common/konkat
-    (segment adrs 0 28)
+    (common/segment adrs 0 28)
     (common/int->byte-array i 4))))
 
 (def set-tree-index set-hash-address)
 
 (defn get-key-pair-address
   [adrs]
-  (common/byte-array->int (segment adrs 20 24)))
+  (common/byte-array->int (common/segment adrs 20 24)))
 
 (defn get-tree-index
   [adrs]
-  (common/byte-array->int (segment adrs 28 32)))
+  (common/byte-array->int (common/segment adrs 28 32)))
 
 (defn new-address
   []

@@ -22,19 +22,17 @@
       input
       (throw (Exception. (format "Input does not contain %s elements, %s has size %s" s input size))))))
 
+(defn segment
+  [a start end]
+  (java.util.Arrays/copyOfRange a start end))
+
 (defn int->byte-array
-  "This is an awful implementation, I know."
   [x n]
-  (let [[result _]
-        (reduce (fn [[result total] curr]
-                  (aset-byte result (- n 1 curr) (mod total 256)) ;; :boom:?
-                  [result (bit-shift-right total 8)])
-                [(byte-array n) x]
-                (range n))]
-    result))
+  (byte-array
+    (map #(unchecked-byte (bit-shift-right x (* 8 (- n 1 %))))
+         (range n))))
 
 (defn byte-array->int
-  "Replace this with something that does not uses ByteBuffer."
   [X]
   (let [bb (java.nio.ByteBuffer/wrap X)]
     (.getInt bb)))

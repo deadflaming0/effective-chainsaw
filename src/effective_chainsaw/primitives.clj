@@ -1,17 +1,7 @@
 (ns effective-chainsaw.primitives
-  (:import (org.bouncycastle.crypto.digests SHA256Digest SHA512Digest SHAKEDigest)
-           (org.bouncycastle.crypto.generators MGF1BytesGenerator)
-           (org.bouncycastle.crypto.macs HMac)))
+  (:import (org.bouncycastle.crypto.digests SHAKEDigest)))
 
 (defn- shake256-algorithm [] (SHAKEDigest. 256))
-
-(defn- sha-256-algorithm [] (SHA256Digest.))
-(defn- mgf1-sha-256-algorithm [] (MGF1BytesGenerator. (sha-256-algorithm)))
-(defn- hmac-sha-256-algorithm [] (HMac. (sha-256-algorithm)))
-
-(defn- sha-512-algorithm [] (SHA512Digest.))
-(defn- mgf1-sha-512-algorithm [] (MGF1BytesGenerator. (sha-512-algorithm)))
-(defn- hmac-sha-512-algorithm [] (HMac. (sha-512-algorithm)))
 
 (defn shake256
   "Bytes in, bytes out."
