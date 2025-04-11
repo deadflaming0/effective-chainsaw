@@ -61,7 +61,7 @@
   Used by WOTS+ and FORS; in the former b will be lg_w, whereas in the latter b will be a.
   In FIPS-205 lg_w is 4, and a can be 6, 8, 9, 12, or 14."
   [X b out_len]
-  (let [_ (common/ensure-correct-size! (int (math/ceil (/ (* out_len b) 8))) X)
+  (let [_ (common/validate-length! (int (math/ceil (/ (* out_len b) 8))) X)
         chunks (map bits->integer (partition b (mapcat byte->bits X)))]
     (take-last out_len chunks))) ;; TODO: take-last will ignore the (supposedly) zeroed lsbs, but what if they are NOT zeroed?
 
@@ -108,7 +108,7 @@
         {:keys [PRF]} functions
         message (base_2b M lg_w len_1)
         checksum (base_2b (calculate-checksum message lg_w w len_2) lg_w len_2)
-        message+checksum (common/konkat message checksum)
+        message+checksum (common/merge-bytes message checksum)
         key-pair-address (address/get-key-pair-address adrs)
         sk-adrs (-> adrs
                     (address/set-type-and-clear :wots-prf)
@@ -123,7 +123,7 @@
                                        pk-seed
                                        (address/set-chain-address adrs index))))
                             message+checksum)]
-    (common/ensure-correct-size! len signature-elements)))
+    (common/validate-length! len signature-elements)))
 
 (defn compute-public-key-from-signature
   "Computes a WOTS+ public key from a message and its signature."
@@ -133,7 +133,7 @@
         {:keys [T_l]} functions
         message (base_2b M lg_w len_1)
         checksum (base_2b (calculate-checksum message lg_w w len_2) lg_w len_2)
-        message+checksum (common/konkat message checksum)
+        message+checksum (common/merge-bytes message checksum)
         public-values (map (fn [index]
                              (let [signature-element (nth signature index)
                                    message+checksum-element (nth message+checksum index)]

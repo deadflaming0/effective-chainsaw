@@ -23,7 +23,7 @@
                       (address/set-type-and-clear :tree)
                       (address/set-tree-height z)
                       (address/set-tree-index i))
-                  (common/konkat left-node right-node))]
+                  (common/merge-bytes left-node right-node))]
       node)))
 
 (defn sign
@@ -61,12 +61,12 @@
                                       (let [new-adrs' (address/set-tree-index new-adrs (int (/ tree-index 2)))]
                                         [(H pk-seed
                                             new-adrs'
-                                            (common/konkat node authentication-path-segment))
+                                            (common/merge-bytes node authentication-path-segment))
                                          new-adrs'])
                                       (let [new-adrs' (address/set-tree-index new-adrs (int (/ (dec tree-index) 2)))]
                                         [(H pk-seed
                                             new-adrs'
-                                            (common/konkat authentication-path-segment node))
+                                            (common/merge-bytes authentication-path-segment node))
                                          new-adrs']))))
                                 [node-0
                                  (-> adrs

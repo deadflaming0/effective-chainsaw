@@ -63,22 +63,22 @@
                      :slh-dsa-shake-256s
                      :slh-dsa-shake-256f) ;; shake-specific functions
                     {:H_msg (fn [R pk-seed pk-root M]
-                              (primitives/shake256 (common/konkat R pk-seed pk-root M)
+                              (primitives/shake256 (common/merge-bytes R pk-seed pk-root M)
                                                    (* 8 (:m parameters))))
                      :PRF (fn [pk-seed sk-seed adrs]
-                            (primitives/shake256 (common/konkat pk-seed adrs sk-seed)
+                            (primitives/shake256 (common/merge-bytes pk-seed adrs sk-seed)
                                                  (* 8 (:n parameters))))
                      :PRF_msg (fn [sk-prf opt_rand M]
-                                (primitives/shake256 (common/konkat sk-prf opt_rand M)
+                                (primitives/shake256 (common/merge-bytes sk-prf opt_rand M)
                                                      (* 8 (:n parameters))))
                      :F (fn [pk-seed adrs M_1] ;; special case of `T_l` but `M` has size n
-                          (primitives/shake256 (common/konkat pk-seed adrs M_1)
+                          (primitives/shake256 (common/merge-bytes pk-seed adrs M_1)
                                                (* 8 (:n parameters))))
                      :H (fn [pk-seed adrs M_2] ;; special case of `T_l` but `M` has size 2n
-                          (primitives/shake256 (common/konkat pk-seed adrs M_2)
+                          (primitives/shake256 (common/merge-bytes pk-seed adrs M_2)
                                                (* 8 (:n parameters))))
                      :T_l (fn [pk-seed adrs M_l] ;; used when compressing WOTS+ public values into a public key
-                            (primitives/shake256 (common/konkat pk-seed adrs M_l)
+                            (primitives/shake256 (common/merge-bytes pk-seed adrs M_l)
                                                  (* 8 (:n parameters))))}
 
                     (:slh-dsa-sha2-128s
