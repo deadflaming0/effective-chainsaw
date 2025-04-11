@@ -38,7 +38,7 @@
 
     (testing "public key changes with address variation"
       (let [adrs' (doto
-                    (address/new-address)
+                   (address/new-address)
                     (java.util.Arrays/fill (byte 122)))
             public-key' (wots/generate-public-key parameter-set-data sk-seed pk-seed adrs')]
         (is (not (java.util.Arrays/equals public-key public-key')))))
@@ -52,36 +52,36 @@
         adrs (address/new-address)
         signature (wots/sign parameter-set-data M sk-seed pk-seed adrs)]
 
-  (testing "signature is deterministic given same inputs"
-    (let [signature' (wots/sign parameter-set-data M sk-seed pk-seed adrs)]
-      (is (every? true? (map java.util.Arrays/equals signature signature')))))
+    (testing "signature is deterministic given same inputs"
+      (let [signature' (wots/sign parameter-set-data M sk-seed pk-seed adrs)]
+        (is (every? true? (map java.util.Arrays/equals signature signature')))))
 
-  (testing "signature changes with message variation"
-    (let [M' (byte-array (concat (butlast M) [127]))
-          signature' (wots/sign parameter-set-data M' sk-seed pk-seed adrs)]
-      (is (some false? (map java.util.Arrays/equals signature signature')))))
+    (testing "signature changes with message variation"
+      (let [M' (byte-array (concat (butlast M) [127]))
+            signature' (wots/sign parameter-set-data M' sk-seed pk-seed adrs)]
+        (is (some false? (map java.util.Arrays/equals signature signature')))))
 
-  (testing "signature changes with sk-seed variation"
-    (let [sk-seed' (randomness/random-bytes n)
-          signature' (wots/sign parameter-set-data M sk-seed' pk-seed adrs)]
-      (is (some false? (map java.util.Arrays/equals signature signature')))))
+    (testing "signature changes with sk-seed variation"
+      (let [sk-seed' (randomness/random-bytes n)
+            signature' (wots/sign parameter-set-data M sk-seed' pk-seed adrs)]
+        (is (some false? (map java.util.Arrays/equals signature signature')))))
 
-  (testing "signature changes with pk-seed variation"
-    (let [pk-seed' (randomness/random-bytes n)
-          signature' (wots/sign parameter-set-data M sk-seed pk-seed' adrs)]
-      (is (some false? (map java.util.Arrays/equals signature signature')))))
+    (testing "signature changes with pk-seed variation"
+      (let [pk-seed' (randomness/random-bytes n)
+            signature' (wots/sign parameter-set-data M sk-seed pk-seed' adrs)]
+        (is (some false? (map java.util.Arrays/equals signature signature')))))
 
-  (testing "signature changes with adrs variation"
-    (let [adrs' (doto
-                  (address/new-address)
-                  (java.util.Arrays/fill (byte 122)))
-          signature' (wots/sign parameter-set-data M sk-seed pk-seed adrs')]
-      (is (some false? (map java.util.Arrays/equals signature signature')))))
+    (testing "signature changes with adrs variation"
+      (let [adrs' (doto
+                   (address/new-address)
+                    (java.util.Arrays/fill (byte 122)))
+            signature' (wots/sign parameter-set-data M sk-seed pk-seed adrs')]
+        (is (some false? (map java.util.Arrays/equals signature signature')))))
 
-  (testing "signature conforms to expected structure: `len` elements of `byte[n]`"
-    (is (= (count signature) 35)) ;; `len`
-    (is (every? true? (map bytes? signature)))
-    (is (every? (partial = n) (map count signature))))))
+    (testing "signature conforms to expected structure: `len` elements of `byte[n]`"
+      (is (= (count signature) 35)) ;; `len`
+      (is (every? true? (map bytes? signature)))
+      (is (every? (partial = n) (map count signature))))))
 
 (deftest compute-public-key-from-signature-test
   (let [sk-seed (randomness/random-bytes n)

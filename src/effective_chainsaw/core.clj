@@ -2,7 +2,24 @@
   (:require [clojure.math :as math]
             [effective-chainsaw.address :as address]
             [effective-chainsaw.common :as common]
+            [effective-chainsaw.parameter-sets :as parameter-sets]
+            [effective-chainsaw.primitives :as primitives]
+            [effective-chainsaw.randomness :as randomness]
             [effective-chainsaw.wots :as wots]))
+
+(def parameter-set-name :slh-dsa-shake-128s)
+
+(def parameter-set-data
+  (parameter-sets/parameter-set-data parameter-set-name))
+
+(def n (-> parameter-set-data :parameters :n))
+
+(def sk-seed (randomness/random-bytes n))
+(def pk-seed (randomness/random-bytes n))
+(def adrs (address/new-address))
+
+(def M
+  (primitives/shake256 (byte-array [0x42 0x41 0x4e 0x41 0x4e 0x41]) (* n 8))) ;; BANANA
 
 (defn xmss-node
   "Computes the root of a Merkle subtree of WOTS+ public keys."
