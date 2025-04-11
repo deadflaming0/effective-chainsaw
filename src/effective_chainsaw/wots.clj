@@ -65,7 +65,7 @@
         chunks (map bits->integer (partition b (mapcat byte->bits X)))]
     (take-last out_len chunks))) ;; TODO: take-last will ignore the (supposedly) zeroed lsbs, but what if they are NOT zeroed?
 
-(defn calculate-checksum
+(defn- calculate-checksum
   "Calculates the checksum of chunks."
   [chunks lg_w w len_2]
   (let [left-shift-by (mod (- 8 (mod (* len_2 lg_w) 8)) 8)
@@ -114,10 +114,15 @@
                     (address/set-type-and-clear :wots-prf)
                     (address/set-key-pair-address key-pair-address))
         signature-elements (map-indexed
-                             (fn [index item]
-                               (let [secret-key (PRF pk-seed sk-seed (address/set-chain-address sk-adrs index))]
-                                 (chain functions secret-key 0 item pk-seed (address/set-chain-address adrs index))))
-                             message+checksum)]
+                            (fn [index item]
+                              (let [secret-key (PRF pk-seed sk-seed (address/set-chain-address sk-adrs index))]
+                                (chain functions
+                                       secret-key
+                                       0
+                                       item
+                                       pk-seed
+                                       (address/set-chain-address adrs index))))
+                            message+checksum)]
     (common/ensure-correct-size! len signature-elements)))
 
 (defn compute-public-key-from-signature
@@ -143,10 +148,10 @@
         wots-pk-adrs (-> adrs
                          (address/set-type-and-clear :wots-pk)
                          (address/set-key-pair-address key-pair-address))
-        candidate-public-key (T_l pk-seed wots-pk-adrs public-values)]
-    candidate-public-key))
+        public-key' (T_l pk-seed wots-pk-adrs public-values)]
+    public-key'))
 
 (defn signature-verifies?
   "Performs a byte-wise comparison of the original and reconstructed WOTS+ public key; not secure against timing attacks."
-  [public-key candidate-public-key]
-  (java.util.Arrays/equals public-key candidate-public-key))
+  [public-key public-key']
+  (java.util.Arrays/equals public-key public-key'))

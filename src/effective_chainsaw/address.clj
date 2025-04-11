@@ -1,19 +1,6 @@
 (ns effective-chainsaw.address
   (:require [effective-chainsaw.common :as common]))
 
-;; 4.2 - 4.4) addresses
-
-;; - an address (adrs) is a byte array of size 32 and conforms to word boundaries, with each word being 4 bytes long
-;; - values are encoded as unsigned integers in big-endian byte order
-;; - 1st word (4 bytes): layer address: height of an xmss tree within the hypertree
-;;   - trees in the bottom layer have height 0, the tree in the top layer has height d-1
-;; - 2nd, 3rd and 4th words (12 bytes): tree address: position of an xmss tree within a layer of the hypertree
-;;   - the leftmost tree in a layer has tree address of 0, the rightmost has tree address 2^(d-1-L)h' - 1 where L is the layer
-;; - 5th word (4 bytes): type of the address, drives the remaining 12 bytes; there are 7 different types
-;;   - every time the address type changes, the final 12 bytes are initialized to 0
-
-;; overall structure of an address: [ layer address || tree address || type || ????? ]
-
 (def ^:private addresses-types
   {:wots-hash 0
    :wots-pk 1

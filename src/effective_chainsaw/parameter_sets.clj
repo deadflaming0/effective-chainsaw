@@ -1,6 +1,6 @@
 (ns effective-chainsaw.parameter-sets
-  (:require [effective-chainsaw.primitives :as primitives]
-            [effective-chainsaw.common :as common]))
+  (:require [effective-chainsaw.common :as common]
+            [effective-chainsaw.primitives :as primitives]))
 
 (def parameter-set->parameters ;; add sha2 variants later
   {:slh-dsa-shake-128s {:n 16

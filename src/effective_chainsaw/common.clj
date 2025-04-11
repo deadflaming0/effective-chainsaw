@@ -29,8 +29,8 @@
 (defn int->byte-array
   [x n]
   (byte-array
-    (map #(unchecked-byte (bit-shift-right x (* 8 (- n 1 %))))
-         (range n))))
+   (map #(unchecked-byte (bit-shift-right x (* 8 (- n 1 %))))
+        (range n))))
 
 (defn byte-array->int
   [X]
