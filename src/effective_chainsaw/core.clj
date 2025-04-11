@@ -43,6 +43,8 @@
                   (common/konkat left-node right-node))]
       node)))
 
+(def xmss-root (xmss-node parameter-set-data sk-seed 0 h' pk-seed adrs))
+
 (defn xmss-sign
   "Generates an XMSS signature."
   [{:keys [parameters] :as parameter-set-data} M sk-seed idx pk-seed adrs]
@@ -53,35 +55,44 @@
         adrs' (-> adrs
                   (address/set-type-and-clear :wots-hash)
                   (address/set-key-pair-address idx))
-        signature (wots/sign parameter-set-data M sk-seed pk-seed adrs')]
-    [signature authentication-path]))
+        wots-signature (wots/sign parameter-set-data M sk-seed pk-seed adrs')]
+    [wots-signature authentication-path]))
 
-(def xmss-signature (xmss-sign parameter-set-data M sk-seed 3 pk-seed adrs))
+(def idx 3)
+
+(def xmss-signature
+  (xmss-sign parameter-set-data M sk-seed idx pk-seed adrs))
 
 (defn xmss-compute-public-key-from-signature
   "Computes an XMSS public key from an XMSS signature."
-  [{:keys [parameters functions] :as parameter-set-data} idx [signature authentication-path] M pk-seed adrs]
+  [{:keys [parameters functions] :as parameter-set-data} idx [wots-signature authentication-path] M pk-seed adrs]
   (let [adrs' (-> adrs
                   (address/set-type-and-clear :wots-hash)
                   (address/set-key-pair-address idx))
-        node-0 (wots/compute-public-key-from-signature parameter-set-data signature M pk-seed adrs')
-        adrs'' (-> adrs
+        node-0 (wots/compute-public-key-from-signature parameter-set-data wots-signature M pk-seed adrs')
+        adrs'' (-> adrs'
                    (address/set-type-and-clear :tree)
                    (address/set-tree-index idx))
         H (:H functions)
-        candidate-public-key (reduce (fn [node k]
-                                       (let [adrs''' (address/set-tree-height adrs'' (inc k))
-                                             tree-index (address/get-tree-index adrs''')
-                                             authentication-path-segment (nth authentication-path k)]
-                                         (if (even? (int (math/floor (/ idx (int (math/pow 2 k)))))) ;; argh
-                                           (H pk-seed
-                                              (address/set-tree-index adrs''' (int (/ tree-index 2)))
-                                              (common/konkat node authentication-path-segment))
-                                           (H pk-seed
-                                              (address/set-tree-index adrs''' (int (/ (dec tree-index) 2)))
-                                              (common/konkat authentication-path-segment node)))))
-                                     node-0
-                                     (range (:h' parameters)))]
-    candidate-public-key))
+        [public-key' _] (reduce (fn [[node new-adrs] k]
+                                  (let [adrs''' (address/set-tree-height new-adrs (inc k))
+                                        tree-index (address/get-tree-index adrs''')
+                                        authentication-path-segment (nth authentication-path k)]
+                                    (if (even? (int (math/floor (/ idx (int (math/pow 2 k))))))
+                                      (let [new-adrs' (address/set-tree-index adrs''' (int (/ tree-index 2)))]
+                                        [(H pk-seed new-adrs' (common/konkat node authentication-path-segment))
+                                         new-adrs'])
+                                      (let [new-adrs' (address/set-tree-index adrs''' (int (/ (dec tree-index) 2)))]
+                                        [(H pk-seed new-adrs' (common/konkat authentication-path-segment node))
+                                         new-adrs']))))
+                                [node-0
+                                 adrs'']
+                                (range (:h' parameters)))]
+    public-key'))
 
-(xmss-compute-public-key-from-signature parameter-set-data 3 xmss-signature M pk-seed adrs)
+(def xmss-public-key'
+  (xmss-compute-public-key-from-signature parameter-set-data idx xmss-signature M pk-seed adrs))
+
+(def h' (-> parameter-set-data :parameters :h'))
+
+(java.util.Arrays/equals xmss-root xmss-public-key')
