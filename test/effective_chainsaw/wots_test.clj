@@ -1,6 +1,7 @@
 (ns effective-chainsaw.wots-test
   (:require [clojure.test :refer :all]
             [effective-chainsaw.address :as address]
+            [effective-chainsaw.common :as common]
             [effective-chainsaw.parameter-sets :as parameter-sets]
             [effective-chainsaw.primitives :as primitives]
             [effective-chainsaw.randomness :as randomness]
@@ -92,14 +93,14 @@
 
     (testing "computed public key from valid signature equals original"
       (let [public-key' (wots/compute-public-key-from-signature parameter-set-data signature M pk-seed adrs)]
-        (is (wots/signature-verifies? public-key public-key'))))
+        (is (common/compare-bytes public-key public-key'))))
 
     (testing "computed public key changes when message changes"
       (let [M' (byte-array (concat (butlast M) [127]))
             public-key' (wots/compute-public-key-from-signature parameter-set-data signature M' pk-seed adrs)]
-        (is (not (wots/signature-verifies? public-key public-key')))))
+        (is (not (common/compare-bytes public-key public-key')))))
 
     (testing "computed public key changes when signature is mutated"
       (let [signature' (shuffle signature)
             public-key' (wots/compute-public-key-from-signature parameter-set-data signature' M pk-seed adrs)]
-        (is (not (wots/signature-verifies? public-key public-key')))))))
+        (is (not (common/compare-bytes public-key public-key')))))))

@@ -3,54 +3,18 @@
             [effective-chainsaw.primitives :as primitives]))
 
 (def parameter-set->parameters ;; add sha2 variants later
-  {:slh-dsa-shake-128s {:n 16
-                        :h 63
-                        :d 7
-                        :h' 9
-                        :a 12
-                        :k 14
-                        :lg_w 4
-                        :m 30}
-   :slh-dsa-shake-128f {:n 16
-                        :h 66
-                        :d 22
-                        :h' 3
-                        :a 6
-                        :k 33
-                        :lg_w 4
-                        :m 34}
-   :slh-dsa-shake-192s {:n 24
-                        :h 63
-                        :d 7
-                        :h' 9
-                        :a 14
-                        :k 17
-                        :lg_w 4
-                        :m 39}
-   :slh-dsa-shake-192f {:n 24
-                        :h 66
-                        :d 22
-                        :h' 3
-                        :a 8
-                        :k 33
-                        :lg_w 4
-                        :m 42}
-   :slh-dsa-shake-256s {:n 32
-                        :h 64
-                        :d 8
-                        :h' 8
-                        :a 14
-                        :k 22
-                        :lg_w 4
-                        :m 47}
-   :slh-dsa-shake-256f {:n 32
-                        :h 68
-                        :d 17
-                        :h' 4
-                        :a 9
-                        :k 35
-                        :lg_w 4
-                        :m 49}})
+  {:slh-dsa-shake-128s
+   {:n 16 :h 63 :d 7 :h' 9 :a 12 :k 14 :lg_w 4 :m 30}
+   :slh-dsa-shake-128f
+   {:n 16 :h 66 :d 22 :h' 3 :a 6 :k 33 :lg_w 4 :m 34}
+   :slh-dsa-shake-192s
+   {:n 24 :h 63 :d 7 :h' 9 :a 14 :k 17 :lg_w 4 :m 39}
+   :slh-dsa-shake-192f
+   {:n 24 :h 66 :d 22 :h' 3 :a 8 :k 33 :lg_w 4 :m 42}
+   :slh-dsa-shake-256s
+   {:n 32 :h 64 :d 8 :h' 8 :a 14 :k 22 :lg_w 4 :m 47}
+   :slh-dsa-shake-256f
+   {:n 32 :h 68 :d 17 :h' 4 :a 9 :k 35 :lg_w 4 :m 49}})
 
 (defn parameter-set-data
   [parameter-set-name]

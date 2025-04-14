@@ -17,6 +17,10 @@
   [a start end]
   (java.util.Arrays/copyOfRange a start end))
 
+(defn compare-bytes
+  [lhs rhs]
+  (java.util.Arrays/equals lhs rhs))
+
 (defn int->byte-array
   [x n]
   (byte-array

@@ -150,8 +150,3 @@
                          (address/set-key-pair-address key-pair-address))
         public-key' (T_l pk-seed wots-pk-adrs public-values)]
     public-key'))
-
-(defn signature-verifies?
-  "Performs a byte-wise comparison of the original and reconstructed WOTS+ public key; not secure against timing attacks."
-  [public-key public-key']
-  (java.util.Arrays/equals public-key public-key'))
