@@ -51,8 +51,7 @@
       (is (common/compare-bytes root-node root-node')))))
 
 (def M
-  (primitives/shake256 (byte-array [0x42 0x41 0x4e 0x41 0x4e 0x41])
-                       (* n 8))) ;; BANANA
+  (primitives/shake256 (byte-array [0x42 0x41 0x4e 0x41 0x4e 0x41]) n)) ;; BANANA
 
 (deftest sign-test
   (testing "generates wots+ signature and authentication path of correct length (based on h')"

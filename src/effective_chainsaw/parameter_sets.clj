@@ -28,22 +28,22 @@
                      :slh-dsa-shake-256f) ;; shake-specific functions
                     {:H_msg (fn [R pk-seed pk-root M]
                               (primitives/shake256 (common/merge-bytes R pk-seed pk-root M)
-                                                   (* 8 (:m parameters))))
+                                                   (:m parameters)))
                      :PRF (fn [pk-seed sk-seed adrs]
                             (primitives/shake256 (common/merge-bytes pk-seed adrs sk-seed)
-                                                 (* 8 (:n parameters))))
+                                                 (:n parameters)))
                      :PRF_msg (fn [sk-prf opt_rand M]
                                 (primitives/shake256 (common/merge-bytes sk-prf opt_rand M)
-                                                     (* 8 (:n parameters))))
+                                                     (:n parameters)))
                      :F (fn [pk-seed adrs M_1] ;; special case of `T_l` but `M` has size n
                           (primitives/shake256 (common/merge-bytes pk-seed adrs M_1)
-                                               (* 8 (:n parameters))))
+                                               (:n parameters)))
                      :H (fn [pk-seed adrs M_2] ;; special case of `T_l` but `M` has size 2n
                           (primitives/shake256 (common/merge-bytes pk-seed adrs M_2)
-                                               (* 8 (:n parameters))))
+                                               (:n parameters)))
                      :T_l (fn [pk-seed adrs M_l] ;; used when compressing WOTS+ public values into a public key
                             (primitives/shake256 (common/merge-bytes pk-seed adrs M_l)
-                                                 (* 8 (:n parameters))))}
+                                                 (:n parameters)))}
 
                     (:slh-dsa-sha2-128s
                      :slh-dsa-sha2-128f) ;; security category 1, requires ADRS implementation (and its compression)

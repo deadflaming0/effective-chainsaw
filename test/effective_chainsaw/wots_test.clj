@@ -15,7 +15,7 @@
 (def n (-> parameter-set-data :parameters :n))
 
 (def M
-  (primitives/shake256 (byte-array [0x42 0x41 0x4e 0x41 0x4e 0x41]) (* n 8))) ;; BANANA
+  (primitives/shake256 (byte-array [0x42 0x41 0x4e 0x41 0x4e 0x41]) n)) ;; BANANA
 
 (deftest generate-public-key-test
   (let [sk-seed (randomness/random-bytes n)
