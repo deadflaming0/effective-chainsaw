@@ -30,7 +30,7 @@
                                                     (-> adrs
                                                         (address/set-type-and-clear :wots-hash)
                                                         (address/set-key-pair-address 1)))]
-      (is (common/compare-bytes root-node wots-public-key))))
+      (is (common/equal-bytes? root-node wots-public-key))))
 
   (testing "correctly computes internal nodes when z > 0"
     (let [root-node (xmss/subtree parameter-set-data sk-seed 1 1 pk-seed adrs)
@@ -43,12 +43,12 @@
                             (address/set-tree-height 1)
                             (address/set-tree-index 1))
                         (common/merge-bytes left-child right-child))]
-      (is (common/compare-bytes root-node root-node'))))
+      (is (common/equal-bytes? root-node root-node'))))
 
   (testing "produces consistent output for identical inputs"
     (let [root-node (xmss/subtree parameter-set-data sk-seed 1 1 pk-seed adrs)
           root-node' (xmss/subtree parameter-set-data sk-seed 1 1 pk-seed adrs)]
-      (is (common/compare-bytes root-node root-node')))))
+      (is (common/equal-bytes? root-node root-node')))))
 
 (def M
   (primitives/shake256 (byte-array [0x42 0x41 0x4e 0x41 0x4e 0x41]) n)) ;; BANANA
@@ -69,7 +69,7 @@
                                      (-> adrs
                                          (address/set-type-and-clear :wots-hash)
                                          (address/set-key-pair-address idx)))]
-      (is (every? true? (map common/compare-bytes wots-signature wots-signature')))
+      (is (every? true? (map common/equal-bytes? wots-signature wots-signature')))
       (is (= h' (count authentication-path)))))
 
   (testing "includes correct sibling nodes in authentication path for given index"
@@ -84,7 +84,7 @@
                     (let [k (bit-xor (int (math/floor (/ idx (math/pow 2 j)))) 1)
                           authentication-path-segment (nth authentication-path j)
                           authentication-path-segment' (xmss/subtree parameter-set-data sk-seed k j pk-seed adrs)]
-                      (common/compare-bytes authentication-path-segment authentication-path-segment')))
+                      (common/equal-bytes? authentication-path-segment authentication-path-segment')))
                   (range h'))))))
 
 (deftest compute-public-key-from-signature-test
@@ -94,20 +94,20 @@
 
     (testing "reconstructs public key matching merkle root for a valid signature"
       (let [public-key' (xmss/compute-public-key-from-signature parameter-set-data idx signature M pk-seed adrs)]
-        (is (common/compare-bytes root-node public-key'))))
+        (is (common/equal-bytes? root-node public-key'))))
 
     (testing "reconstruction fails when message is modified"
       (let [M' (byte-array (concat [127] (rest M)))
             public-key' (xmss/compute-public-key-from-signature parameter-set-data idx signature M' pk-seed adrs)]
-        (is (not (common/compare-bytes root-node public-key')))))
+        (is (not (common/equal-bytes? root-node public-key')))))
 
     (testing "reconstruction fails when index is incorrect"
       (let [idx' 10
             public-key' (xmss/compute-public-key-from-signature parameter-set-data idx' signature M pk-seed adrs)]
-        (is (not (common/compare-bytes root-node public-key')))))
+        (is (not (common/equal-bytes? root-node public-key')))))
 
     (testing "reconstruction fails when authentication path is tampered"
       (let [authentication-path' (shuffle authentication-path)
             signature' [wots-signature authentication-path']
             public-key' (xmss/compute-public-key-from-signature parameter-set-data idx signature' M pk-seed adrs)]
-        (is (not (common/compare-bytes root-node public-key')))))))
+        (is (not (common/equal-bytes? root-node public-key')))))))

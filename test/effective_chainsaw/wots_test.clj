@@ -93,14 +93,14 @@
 
     (testing "computed public key from valid signature equals original"
       (let [public-key' (wots/compute-public-key-from-signature parameter-set-data signature M pk-seed adrs)]
-        (is (common/compare-bytes public-key public-key'))))
+        (is (common/equal-bytes? public-key public-key'))))
 
     (testing "computed public key changes when message changes"
       (let [M' (byte-array (concat (butlast M) [127]))
             public-key' (wots/compute-public-key-from-signature parameter-set-data signature M' pk-seed adrs)]
-        (is (not (common/compare-bytes public-key public-key')))))
+        (is (not (common/equal-bytes? public-key public-key')))))
 
     (testing "computed public key changes when signature is mutated"
       (let [signature' (shuffle signature)
             public-key' (wots/compute-public-key-from-signature parameter-set-data signature' M pk-seed adrs)]
-        (is (not (common/compare-bytes public-key public-key')))))))
+        (is (not (common/equal-bytes? public-key public-key')))))))

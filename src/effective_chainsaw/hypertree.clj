@@ -82,4 +82,4 @@
                                       {:public-key' leaf-public-key'
                                        :idx_tree' idx_tree}
                                       (range 1 d))]
-    (common/compare-bytes pk-root public-key')))
+    (common/equal-bytes? pk-root public-key')))

@@ -18,7 +18,7 @@
   [a start end]
   (java.util.Arrays/copyOfRange a start end))
 
-(defn compare-bytes
+(defn equal-bytes?
   [lhs rhs]
   (java.util.Arrays/equals lhs rhs))
 
@@ -31,13 +31,13 @@
       input
       (throw (Exception. (format "Input does not contain %s elements, %s has size %s" s input size))))))
 
-(defn int->byte-array
+(defn integer->byte-array
   [x n]
   (byte-array
    (map #(unchecked-byte (bit-shift-right x (* 8 (- n 1 %))))
         (range n))))
 
-(defn byte-array->int
+(defn byte-array->integer
   [X]
   (let [bb (java.nio.ByteBuffer/wrap X)]
     (.getInt bb)))
@@ -51,11 +51,11 @@
   [bits]
   (reduce #(+ (bit-shift-left %1 1) %2) 0 bits))
 
-(defn base_2b
-  "Divides X into out_len blocks, each having an integer in the range [0, ..., 2^b - 1].
-  Used by WOTS+ and FORS; in the former b will be lg_w, whereas in the latter b will be a.
+(defn byte-array->base-2b
+  "Divides X into output-length blocks, each having an integer in the range [0, ..., 2^base - 1].
+  Used by WOTS+ and FORS; in the former base will be lg_w, whereas in the latter base will be a.
   In FIPS-205 lg_w is 4, and a can be 6, 8, 9, 12, or 14."
-  [X b out_len]
-  (let [_ (validate-length! (int (math/ceil (/ (* out_len b) 8))) X)
-        chunks (map bits->integer (partition b (mapcat byte->bits X)))]
-    (take-last out_len chunks)))
+  [X base output-length]
+  (validate-length! (int (math/ceil (/ (* output-length base) 8))) X)
+  (let [blocks (map bits->integer (partition base (mapcat byte->bits X)))]
+    (take-last output-length blocks)))

@@ -48,14 +48,14 @@
     public-key))
 
 (defn- calculate-checksum
-  "Calculates the checksum of chunks."
-  [chunks lg_w w len_2]
+  "Calculates the checksum of blocks."
+  [blocks lg_w w len_2]
   (let [left-shift-by (mod (- 8 (mod (* len_2 lg_w) 8)) 8)
         checksum (reduce (fn [accumulator i]
                            (- i 1 (+ accumulator w)))
-                         0 chunks)
+                         0 blocks)
         checksum-size (int (math/ceil (/ (* len_2 lg_w) 8)))]
-    (common/int->byte-array (bit-shift-left checksum left-shift-by) checksum-size)))
+    (common/integer->byte-array (bit-shift-left checksum left-shift-by) checksum-size)))
 
 (defn sign
   "Generates a WOTS+ signature on an n-byte message.
@@ -88,8 +88,8 @@
   (let [{:keys [lg_w]} parameters
         {:keys [w len_1 len_2 len]} (get-additional-values parameters)
         {:keys [PRF]} functions
-        message (common/base_2b M lg_w len_1)
-        checksum (common/base_2b (calculate-checksum message lg_w w len_2) lg_w len_2)
+        message (common/byte-array->base-2b M lg_w len_1)
+        checksum (common/byte-array->base-2b (calculate-checksum message lg_w w len_2) lg_w len_2)
         message+checksum (common/merge-bytes message checksum)
         key-pair-address (address/get-key-pair-address adrs)
         sk-adrs (-> adrs
@@ -113,8 +113,8 @@
   (let [{:keys [lg_w]} parameters
         {:keys [w len_1 len_2 len]} (get-additional-values parameters)
         {:keys [T_l]} functions
-        message (common/base_2b M lg_w len_1)
-        checksum (common/base_2b (calculate-checksum message lg_w w len_2) lg_w len_2)
+        message (common/byte-array->base-2b M lg_w len_1)
+        checksum (common/byte-array->base-2b (calculate-checksum message lg_w w len_2) lg_w len_2)
         message+checksum (common/merge-bytes message checksum)
         public-values (map (fn [index]
                              (let [signature-element (nth signature index)
