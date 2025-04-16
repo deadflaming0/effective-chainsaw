@@ -47,24 +47,6 @@
         public-key (T_l pk-seed wots-pk-adrs public-values)] ;; compress public key
     public-key))
 
-(defn- byte->bits
-  [b]
-  (map #(bit-and (bit-shift-right b %) 1)
-       (range 7 -1 -1)))
-
-(defn- bits->integer
-  [bits]
-  (reduce #(+ (bit-shift-left %1 1) %2) 0 bits))
-
-(defn base_2b ;; probably will be moved later
-  "Divides X into out_len blocks, each having an integer in the range [0, ..., 2^b - 1].
-  Used by WOTS+ and FORS; in the former b will be lg_w, whereas in the latter b will be a.
-  In FIPS-205 lg_w is 4, and a can be 6, 8, 9, 12, or 14."
-  [X b out_len]
-  (let [_ (common/validate-length! (int (math/ceil (/ (* out_len b) 8))) X)
-        chunks (map bits->integer (partition b (mapcat byte->bits X)))]
-    (take-last out_len chunks))) ;; TODO: take-last will ignore the (supposedly) zeroed lsbs, but what if they are NOT zeroed?
-
 (defn- calculate-checksum
   "Calculates the checksum of chunks."
   [chunks lg_w w len_2]
@@ -106,8 +88,8 @@
   (let [{:keys [lg_w]} parameters
         {:keys [w len_1 len_2 len]} (get-additional-values parameters)
         {:keys [PRF]} functions
-        message (base_2b M lg_w len_1)
-        checksum (base_2b (calculate-checksum message lg_w w len_2) lg_w len_2)
+        message (common/base_2b M lg_w len_1)
+        checksum (common/base_2b (calculate-checksum message lg_w w len_2) lg_w len_2)
         message+checksum (common/merge-bytes message checksum)
         key-pair-address (address/get-key-pair-address adrs)
         sk-adrs (-> adrs
@@ -131,8 +113,8 @@
   (let [{:keys [lg_w]} parameters
         {:keys [w len_1 len_2 len]} (get-additional-values parameters)
         {:keys [T_l]} functions
-        message (base_2b M lg_w len_1)
-        checksum (base_2b (calculate-checksum message lg_w w len_2) lg_w len_2)
+        message (common/base_2b M lg_w len_1)
+        checksum (common/base_2b (calculate-checksum message lg_w w len_2) lg_w len_2)
         message+checksum (common/merge-bytes message checksum)
         public-values (map (fn [index]
                              (let [signature-element (nth signature index)

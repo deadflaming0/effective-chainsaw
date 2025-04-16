@@ -1,4 +1,5 @@
-(ns effective-chainsaw.common)
+(ns effective-chainsaw.common
+  (:require [clojure.math :as math]))
 
 (defn merge-bytes
   "Merges byte arrays (or flat sequences of byte arrays) into a single byte array.
@@ -21,6 +22,15 @@
   [lhs rhs]
   (java.util.Arrays/equals lhs rhs))
 
+(defn validate-length!
+  [s input]
+  (let [size (if (.isArray (class input))
+               (alength input)
+               (count input))]
+    (if (= size s)
+      input
+      (throw (Exception. (format "Input does not contain %s elements, %s has size %s" s input size))))))
+
 (defn int->byte-array
   [x n]
   (byte-array
@@ -32,11 +42,20 @@
   (let [bb (java.nio.ByteBuffer/wrap X)]
     (.getInt bb)))
 
-(defn validate-length!
-  [s input]
-  (let [size (if (.isArray (class input))
-               (alength input)
-               (count input))]
-    (if (= size s)
-      input
-      (throw (Exception. (format "Input does not contain %s elements, %s has size %s" s input size))))))
+(defn- byte->bits
+  [b]
+  (map #(bit-and (bit-shift-right b %) 1)
+       (range 7 -1 -1)))
+
+(defn- bits->integer
+  [bits]
+  (reduce #(+ (bit-shift-left %1 1) %2) 0 bits))
+
+(defn base_2b
+  "Divides X into out_len blocks, each having an integer in the range [0, ..., 2^b - 1].
+  Used by WOTS+ and FORS; in the former b will be lg_w, whereas in the latter b will be a.
+  In FIPS-205 lg_w is 4, and a can be 6, 8, 9, 12, or 14."
+  [X b out_len]
+  (let [_ (validate-length! (int (math/ceil (/ (* out_len b) 8))) X)
+        chunks (map bits->integer (partition b (mapcat byte->bits X)))]
+    (take-last out_len chunks)))
