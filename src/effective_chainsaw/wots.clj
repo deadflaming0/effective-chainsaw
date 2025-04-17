@@ -7,9 +7,9 @@
   [x]
   (/ (math/log x) (math/log 2)))
 
-(defn- get-additional-values
+(defn get-additional-values
   "Given the two main WOTS+ parameters `n` and `lg_w`, derive four additional values: `w`, `len_1`, `len_2`, and `len`.
-  - `w` represents the length of the chain created from the secret values;
+  - `w` represents the length of the chain created from the private values;
   - `len_1` is the length of the array after conversion of the 8n-bit message into base-w integers;
   - `len_2` is the length of the base-w checksum that is appended to the converted array."
   [{:keys [n lg_w]}]
@@ -34,12 +34,12 @@
   (let [{:keys [w len]} (get-additional-values parameters)
         {:keys [PRF T_l]} functions
         key-pair-address (address/get-key-pair-address adrs)
-        sk-adrs (-> adrs
-                    (address/set-type-and-clear :wots-prf)
-                    (address/set-key-pair-address key-pair-address))
+        private-key-adrs (-> adrs
+                             (address/set-type-and-clear :wots-prf)
+                             (address/set-key-pair-address key-pair-address))
         public-values (map (fn [index]
-                             (let [secret-key (PRF pk-seed sk-seed (address/set-chain-address sk-adrs index))] ;; compute secret value for chain `index`
-                               (chain functions secret-key 0 (dec w) pk-seed (address/set-chain-address adrs index)))) ;; compute public value for chain `index`
+                             (let [private-key (PRF pk-seed sk-seed (address/set-chain-address private-key-adrs index))] ;; compute private key for chain `index`
+                               (chain functions private-key 0 (dec w) pk-seed (address/set-chain-address adrs index)))) ;; compute public value for chain `index`
                            (range len))
         wots-pk-adrs (-> adrs
                          (address/set-type-and-clear :wots-pk)
@@ -92,14 +92,14 @@
         checksum (common/byte-array->base-2b (calculate-checksum message lg_w w len_2) lg_w len_2)
         message+checksum (common/merge-bytes message checksum)
         key-pair-address (address/get-key-pair-address adrs)
-        sk-adrs (-> adrs
-                    (address/set-type-and-clear :wots-prf)
-                    (address/set-key-pair-address key-pair-address))
+        private-key-adrs (-> adrs
+                             (address/set-type-and-clear :wots-prf)
+                             (address/set-key-pair-address key-pair-address))
         signature-elements (map-indexed
                             (fn [index item]
-                              (let [secret-key (PRF pk-seed sk-seed (address/set-chain-address sk-adrs index))]
+                              (let [private-key (PRF pk-seed sk-seed (address/set-chain-address private-key-adrs index))]
                                 (chain functions
-                                       secret-key
+                                       private-key
                                        0
                                        item
                                        pk-seed
