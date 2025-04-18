@@ -4,8 +4,10 @@
             [effective-chainsaw.address :as address]
             [effective-chainsaw.common :as common]
             [effective-chainsaw.fors :as fors]
+            [effective-chainsaw.hypertree :as hypertree]
             [effective-chainsaw.parameter-sets :as parameter-sets]
-            [effective-chainsaw.randomness :as randomness]))
+            [effective-chainsaw.randomness :as randomness]
+            [effective-chainsaw.slh-dsa :as slh-dsa]))
 
 (def parameter-set-name :slh-dsa-shake-128s)
 
@@ -56,7 +58,7 @@
   (randomness/random-bytes (int (math/ceil (/ (* k a) 8))))) ;; from algorithm 19, line 6 (slh_sign_internal)
 
 (deftest sign-test
-  (testing "publishes fors private keys along with their authentication paths"
+  (testing "outputs fors private keys along with their authentication paths"
     (let [fors-signature (fors/sign parameter-set-data message-digest sk-seed pk-seed adrs)
           grouped-elements (group-by count fors-signature)
           fors-private-keys (get grouped-elements n) ;; implicit check for each fors private key length
@@ -66,3 +68,11 @@
              (count authentication-paths)))
       (is (= (count (apply concat (flatten fors-signature)))
              (* k (inc a) n))))))
+
+(deftest compute-public-key-from-signature-test
+  (testing "a public key derived from a fors signature, signed by the hypertree, yields the hypertree public key"
+    (let [fors-signature (fors/sign parameter-set-data message-digest sk-seed pk-seed adrs)
+          public-key' (fors/compute-public-key-from-signature parameter-set-data fors-signature message-digest pk-seed adrs)
+          hypertree-signature (hypertree/sign parameter-set-data public-key' sk-seed pk-seed 0 0)
+          pk-root (slh-dsa/pk-root parameter-set-name sk-seed pk-seed)]
+      (is (hypertree/verify parameter-set-data public-key' hypertree-signature pk-seed 0 0 pk-root)))))

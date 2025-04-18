@@ -43,14 +43,14 @@
   [{:keys [parameters] :as parameter-set-data} message-digest sk-seed pk-seed adrs]
   (let [{:keys [a k]} parameters
         indices (common/byte-array->base-2b message-digest a k)
+        t (int (math/pow 2 a))
         fors-signature (reduce (fn [fors-signature' i]
                                  (let [index (nth indices i)
                                        private-key (generate-private-key parameter-set-data
                                                                          sk-seed
                                                                          pk-seed
                                                                          adrs
-                                                                         (+ (* i (int (math/pow 2 a)))
-                                                                            index))
+                                                                         (+ (* i t) index))
                                        authentication-path (map (fn [j]
                                                                   (let [s (bit-xor (int (math/floor (/ index (math/pow 2 j)))) 1)
                                                                         authentication-path-segment (subtree parameter-set-data
@@ -73,13 +73,13 @@
         {:keys [F H T_l]} functions
         indices (common/byte-array->base-2b message-digest a k)
         partitioned (partition 2 fors-signature) ;; pairs of fors signature + authentication path
+        t (int (math/pow 2 a))
         fors-public-keys (reduce (fn [root i]
                                    (let [[private-key authentication-path] (nth partitioned i)
                                          index (nth indices i)
                                          adrs' (-> adrs
                                                    (address/set-tree-height 0)
-                                                   (address/set-tree-index (+ (* i (int (math/pow 2 a)))
-                                                                              index)))
+                                                   (address/set-tree-index (+ (* i t) index)))
                                          node-0 (F pk-seed adrs' private-key)
                                          [root' _] (reduce (fn [[node adrs'] j]
                                                              (let [new-adrs (address/set-tree-height adrs' (inc j))
