@@ -7,7 +7,7 @@
             [effective-chainsaw.hypertree :as hypertree]
             [effective-chainsaw.parameter-sets :as parameter-sets]
             [effective-chainsaw.randomness :as randomness]
-            [effective-chainsaw.slh-dsa :as slh-dsa]))
+            [effective-chainsaw.xmss :as xmss]))
 
 (def parameter-set-name :slh-dsa-shake-128s)
 
@@ -69,10 +69,13 @@
       (is (= (count (apply concat (flatten fors-signature)))
              (* k (inc a) n))))))
 
+(def h' (-> parameter-set-data :parameters :h'))
+(def d (-> parameter-set-data :parameters :d))
+
 (deftest compute-public-key-from-signature-test
   (testing "a public key derived from a fors signature, when signed by the hypertree, yields the hypertree's public key"
     (let [fors-signature (fors/sign parameter-set-data message-digest sk-seed pk-seed adrs)
           public-key' (fors/compute-public-key-from-signature parameter-set-data fors-signature message-digest pk-seed adrs)
           hypertree-signature (hypertree/sign parameter-set-data public-key' sk-seed pk-seed 0 0)
-          pk-root (slh-dsa/pk-root parameter-set-name sk-seed pk-seed)]
+          pk-root (xmss/subtree parameter-set-data sk-seed 0 h' pk-seed (-> (address/new-address) (address/set-layer-address (dec d))))]
       (is (hypertree/verify parameter-set-data public-key' hypertree-signature pk-seed 0 0 pk-root)))))

@@ -1,9 +1,10 @@
 (ns effective-chainsaw.hypertree-test
   (:require [clojure.test :refer :all]
+            [effective-chainsaw.address :as address]
             [effective-chainsaw.hypertree :as hypertree]
             [effective-chainsaw.parameter-sets :as parameter-sets]
             [effective-chainsaw.randomness :as randomness]
-            [effective-chainsaw.slh-dsa :as slh-dsa]))
+            [effective-chainsaw.xmss :as xmss]))
 
 (def parameter-set-name :slh-dsa-shake-128s)
 
@@ -15,7 +16,13 @@
 (def sk-seed (randomness/random-bytes n))
 (def pk-seed (randomness/random-bytes n))
 
-(def pk-root (slh-dsa/pk-root parameter-set-name sk-seed pk-seed))
+(def d (-> parameter-set-data :parameters :d))
+(def h' (-> parameter-set-data :parameters :h'))
+
+(def adrs (-> (address/new-address)
+              (address/set-layer-address (dec d))))
+
+(def pk-root (xmss/subtree parameter-set-data sk-seed 0 h' pk-seed adrs))
 
 (def M (randomness/random-bytes n))
 

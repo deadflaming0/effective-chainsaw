@@ -39,8 +39,10 @@
 
 (defn byte-array->integer
   [X]
-  (let [bb (java.nio.ByteBuffer/wrap X)]
-    (.getInt bb)))
+  (reduce (fn [prev curr]
+            (+ prev (bit-and curr 0xff)))
+          0
+          X))
 
 (defn- byte->bits
   [b]
