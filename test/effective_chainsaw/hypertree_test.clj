@@ -20,6 +20,6 @@
 (def M (randomness/random-bytes n))
 
 (deftest hypertree-roundtrip-test
-  (testing "sign and verify roundtrip"
+  (testing "signs and verifies correctly (roundtrip test)"
     (let [signature (hypertree/sign parameter-set-data M sk-seed pk-seed 0 0)]
       (is (hypertree/verify parameter-set-data M signature pk-seed 0 0 pk-root)))))

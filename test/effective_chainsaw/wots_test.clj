@@ -77,7 +77,7 @@
             signature' (wots/sign parameter-set-data M sk-seed pk-seed adrs')]
         (is (some false? (map common/equal-bytes? signature signature')))))
 
-    (testing "signature conforms to expected structure: len byte arrays of length n"
+    (testing "signature conforms to expected structure: len bytes of length n"
       (let [{:keys [len]} (wots/get-additional-values (:parameters parameter-set-data))]
         (is (= (count signature) len))
         (is (every? bytes? signature)))
@@ -90,7 +90,7 @@
         public-key (wots/generate-public-key parameter-set-data sk-seed pk-seed adrs)
         signature (wots/sign parameter-set-data M sk-seed pk-seed adrs)]
 
-    (testing "computed public key from valid signature equals original"
+    (testing "computed public key from valid signature equals original public key"
       (let [public-key' (wots/compute-public-key-from-signature parameter-set-data signature M pk-seed adrs)]
         (is (common/equal-bytes? public-key public-key'))))
 

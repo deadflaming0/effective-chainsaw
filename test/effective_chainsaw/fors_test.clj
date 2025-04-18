@@ -58,7 +58,7 @@
   (randomness/random-bytes (int (math/ceil (/ (* k a) 8))))) ;; from algorithm 19, line 6 (slh_sign_internal)
 
 (deftest sign-test
-  (testing "outputs fors private keys along with their authentication paths"
+  (testing "outputs fors private keys and corresponding authentication paths"
     (let [fors-signature (fors/sign parameter-set-data message-digest sk-seed pk-seed adrs)
           grouped-elements (group-by count fors-signature)
           fors-private-keys (get grouped-elements n) ;; implicit check for each fors private key length
@@ -70,7 +70,7 @@
              (* k (inc a) n))))))
 
 (deftest compute-public-key-from-signature-test
-  (testing "a public key derived from a fors signature, signed by the hypertree, yields the hypertree public key"
+  (testing "a public key derived from a fors signature, when signed by the hypertree, yields the hypertree's public key"
     (let [fors-signature (fors/sign parameter-set-data message-digest sk-seed pk-seed adrs)
           public-key' (fors/compute-public-key-from-signature parameter-set-data fors-signature message-digest pk-seed adrs)
           hypertree-signature (hypertree/sign parameter-set-data public-key' sk-seed pk-seed 0 0)

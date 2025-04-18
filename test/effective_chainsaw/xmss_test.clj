@@ -78,7 +78,7 @@
          authentication-path
          :as xmss-signature] (xmss/sign parameter-set-data M sk-seed idx pk-seed adrs)]
 
-    (testing "reconstructs public key matching merkle root for a valid signature"
+    (testing "reconstructs a public key that matches the merkle root for a valid signature"
       (let [public-key' (xmss/compute-public-key-from-signature parameter-set-data idx xmss-signature M pk-seed adrs)]
         (is (common/equal-bytes? root-node public-key'))))
 
@@ -92,7 +92,7 @@
             public-key' (xmss/compute-public-key-from-signature parameter-set-data idx' xmss-signature M pk-seed adrs)]
         (is (not (common/equal-bytes? root-node public-key')))))
 
-    (testing "reconstruction fails when authentication path is tampered"
+    (testing "reconstruction fails when authentication path is tampered with"
       (let [authentication-path' (shuffle authentication-path)
             xmss-signature' [wots-signature authentication-path']
             public-key' (xmss/compute-public-key-from-signature parameter-set-data idx xmss-signature' M pk-seed adrs)]
