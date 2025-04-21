@@ -25,7 +25,7 @@
      {:pk-seed pk-seed
       :pk-root pk-root}}))
 
-(defn- validate-and-prepend-context!
+(defn- prepend-context!
   [M context]
   (let [context-length (count context)]
     (if (> 255 context-length)
@@ -39,29 +39,25 @@
 (defn sign
   [parameter-set-name M context private-key]
   (let [parameter-set-data (parameter-sets/parameter-set-data parameter-set-name)
-        M' (validate-and-prepend-context! M context)]
+        M' (prepend-context! M context)]
     (slh-dsa/sign* parameter-set-data M' private-key)))
 
 (defn verify
   [parameter-set-name M signature context public-key]
   (let [parameter-set-data (parameter-sets/parameter-set-data parameter-set-name)
-        M' (validate-and-prepend-context! M context)]
+        M' (prepend-context! M context)]
     (slh-dsa/verify* parameter-set-data M' signature public-key)))
 
 (comment
   (do
     (def parameter-set-name :slh-dsa-shake-128s)
 
-    (def key-pair (time (generate-key-pair parameter-set-name)))
-    ; (out) "Elapsed time: 4209.8285 msecs"
+    (def key-pair (time (generate-key-pair parameter-set-name))) ; #'effective-chainsaw.api/key-pair
 
     (def M (byte-array [0x01 0x02 0x03 0x04 0x05]))
     (def context (byte-array [0xff]))
 
     (def signature (time (sign parameter-set-name M context (:private-key key-pair))))
-    ; (out) "Elapsed time: 33267.328916 msecs"
 
     (assert (time (verify parameter-set-name M signature context (:public-key key-pair)))
-            "NOOO!!!!!"))
-  ; (out) "Elapsed time: 37.39175 msecs"
-  )
+            "NOOO!!!!!")))

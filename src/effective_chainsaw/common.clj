@@ -33,16 +33,12 @@
 
 (defn integer->byte-array
   [x n]
-  (byte-array
-   (map #(unchecked-byte (bit-shift-right x (* 8 (- n 1 %))))
-        (range n))))
+  (byte-array (map #(unchecked-byte (bit-shift-right x (* 8 (- n 1 %))))
+                   (range n))))
 
 (defn byte-array->integer
   [X]
-  (reduce (fn [prev curr]
-            (+ prev (bit-and curr 0xff)))
-          0
-          X))
+  (reduce #(+ %1 (bit-and %2 0xff)) 0 X))
 
 (defn- byte->bits
   [b]
@@ -50,8 +46,8 @@
        (range 7 -1 -1)))
 
 (defn- bits->integer
-  [bits]
-  (reduce #(+ (bit-shift-left %1 1) %2) 0 bits))
+  [bs]
+  (reduce #(+ (bit-shift-left %1 1) %2) 0 bs))
 
 (defn byte-array->base-2b
   "Divides X into output-length blocks, each having an integer in the range [0, ..., 2^base - 1].

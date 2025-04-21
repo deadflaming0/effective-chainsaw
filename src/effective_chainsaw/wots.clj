@@ -37,14 +37,14 @@
         private-key-adrs (-> adrs
                              (address/set-type-and-clear :wots-prf)
                              (address/set-key-pair-address key-pair-address))
-        public-values (map (fn [index]
-                             (let [private-key (PRF pk-seed sk-seed (address/set-chain-address private-key-adrs index))] ;; compute private key for chain `index`
-                               (chain functions private-key 0 (dec w) pk-seed (address/set-chain-address adrs index)))) ;; compute public value for chain `index`
-                           (range len))
+        public-values (pmap (fn [index]
+                              (let [private-key (PRF pk-seed sk-seed (address/set-chain-address private-key-adrs index))]
+                                (chain functions private-key 0 (dec w) pk-seed (address/set-chain-address adrs index))))
+                            (range len))
         wots-pk-adrs (-> adrs
                          (address/set-type-and-clear :wots-pk)
                          (address/set-key-pair-address key-pair-address))
-        public-key (T_l pk-seed wots-pk-adrs public-values)] ;; compress public key
+        public-key (T_l pk-seed wots-pk-adrs public-values)]
     public-key))
 
 (defn- calculate-checksum
@@ -87,7 +87,6 @@
   [{:keys [parameters functions]} M sk-seed pk-seed adrs]
   (let [{:keys [lg_w]} parameters
         {:keys [w len_1 len_2 len]} (get-additional-values parameters)
-        {:keys [PRF]} functions
         message (common/byte-array->base-2b M lg_w len_1)
         checksum (common/byte-array->base-2b (calculate-checksum message lg_w w len_2) lg_w len_2)
         message+checksum (common/merge-bytes message checksum)
@@ -95,40 +94,41 @@
         private-key-adrs (-> adrs
                              (address/set-type-and-clear :wots-prf)
                              (address/set-key-pair-address key-pair-address))
-        signature-elements (map-indexed
-                            (fn [index item]
-                              (let [private-key (PRF pk-seed sk-seed (address/set-chain-address private-key-adrs index))]
-                                (chain functions
-                                       private-key
-                                       0
-                                       item
-                                       pk-seed
-                                       (address/set-chain-address adrs index))))
-                            message+checksum)]
-    (common/validate-length! len signature-elements)))
+        {:keys [PRF]} functions
+        signature (pmap (fn [message+checksum-element index]
+                          (let [private-key (PRF pk-seed sk-seed (address/set-chain-address private-key-adrs index))]
+                            (chain functions
+                                   private-key
+                                   0
+                                   message+checksum-element
+                                   pk-seed
+                                   (address/set-chain-address adrs index))))
+                        message+checksum
+                        (range len))]
+    signature))
 
 (defn compute-public-key-from-signature
   "Computes a WOTS+ public key from a message and its signature."
   [{:keys [parameters functions]} signature M pk-seed adrs]
   (let [{:keys [lg_w]} parameters
         {:keys [w len_1 len_2 len]} (get-additional-values parameters)
-        {:keys [T_l]} functions
         message (common/byte-array->base-2b M lg_w len_1)
         checksum (common/byte-array->base-2b (calculate-checksum message lg_w w len_2) lg_w len_2)
         message+checksum (common/merge-bytes message checksum)
-        public-values (map (fn [index]
-                             (let [signature-element (nth signature index)
-                                   message+checksum-element (nth message+checksum index)]
-                               (chain functions
-                                      signature-element
-                                      message+checksum-element
-                                      (- w 1 message+checksum-element)
-                                      pk-seed
-                                      (address/set-chain-address adrs index))))
-                           (range len))
+        public-values (pmap (fn [signature-element message+checksum-element index]
+                              (chain functions
+                                     signature-element
+                                     message+checksum-element
+                                     (- w 1 message+checksum-element)
+                                     pk-seed
+                                     (address/set-chain-address adrs index)))
+                            signature
+                            message+checksum
+                            (range len))
         key-pair-address (address/get-key-pair-address adrs)
         wots-pk-adrs (-> adrs
                          (address/set-type-and-clear :wots-pk)
                          (address/set-key-pair-address key-pair-address))
-        public-key' (T_l pk-seed wots-pk-adrs public-values)]
-    public-key'))
+        {:keys [T_l]} functions
+        public-key (T_l pk-seed wots-pk-adrs public-values)]
+    public-key))

@@ -7,15 +7,15 @@
 (defn subtree
   "Computes the root of a Merkle subtree of WOTS+ public keys."
   [{:keys [functions] :as parameter-set-data} sk-seed i z pk-seed adrs]
-  ;; add validation
+  ;; TODO: add validation
   (if (zero? z)
-    (let [public-key (wots/generate-public-key parameter-set-data
-                                               sk-seed
-                                               pk-seed
-                                               (-> adrs
-                                                   (address/set-type-and-clear :wots-hash)
-                                                   (address/set-key-pair-address i)))]
-      public-key)
+    (let [wots-public-key (wots/generate-public-key parameter-set-data
+                                                    sk-seed
+                                                    pk-seed
+                                                    (-> adrs
+                                                        (address/set-type-and-clear :wots-hash)
+                                                        (address/set-key-pair-address i)))]
+      wots-public-key)
     (let [left-node (subtree parameter-set-data sk-seed (* 2 i) (dec z) pk-seed adrs)
           right-node (subtree parameter-set-data sk-seed (inc (* 2 i)) (dec z) pk-seed adrs)
           H (:H functions)
@@ -29,46 +29,47 @@
 
 (defn sign
   "Generates an XMSS signature."
-  [{:keys [parameters] :as parameter-set-data} M sk-seed idx pk-seed adrs]
-  (let [authentication-path (map (fn [j]
-                                   (let [k (bit-xor (int (math/floor (/ idx (int (math/pow 2 j))))) 1)]
-                                     (subtree parameter-set-data sk-seed k j pk-seed adrs)))
-                                 (range (:h' parameters)))
+  [{:keys [parameters] :as parameter-set-data} M sk-seed index pk-seed adrs]
+  (let [authentication-path (pmap (fn [j]
+                                    (let [k (bit-xor (int (math/floor (/ index (int (math/pow 2 j))))) 1)]
+                                      (subtree parameter-set-data sk-seed k j pk-seed adrs)))
+                                  (range (:h' parameters)))
         wots-signature (wots/sign parameter-set-data
                                   M
                                   sk-seed
                                   pk-seed
                                   (-> adrs
                                       (address/set-type-and-clear :wots-hash)
-                                      (address/set-key-pair-address idx)))]
-    [wots-signature
-     authentication-path]))
+                                      (address/set-key-pair-address index)))]
+    [wots-signature authentication-path]))
 
 (defn compute-public-key-from-signature
   "Computes an XMSS public key from an XMSS signature."
-  [{:keys [parameters functions] :as parameter-set-data} idx [wots-signature authentication-path] M pk-seed adrs]
+  [{:keys [parameters functions] :as parameter-set-data} index [wots-signature authentication-path] M pk-seed adrs]
   (let [node-0 (wots/compute-public-key-from-signature parameter-set-data
                                                        wots-signature
                                                        M
                                                        pk-seed
                                                        (-> adrs
                                                            (address/set-type-and-clear :wots-hash)
-                                                           (address/set-key-pair-address idx)))
+                                                           (address/set-key-pair-address index)))
         H (:H functions)
-        [public-key' _] (reduce (fn [[node adrs'] k]
-                                  (let [new-adrs (address/set-tree-height adrs' (inc k))
-                                        tree-index (address/get-tree-index new-adrs)
-                                        authentication-path-segment (nth authentication-path k)]
-                                    (if (even? (int (math/floor (/ idx (int (math/pow 2 k))))))
-                                      (let [new-adrs' (address/set-tree-index new-adrs (int (/ tree-index 2)))]
-                                        [(H pk-seed new-adrs' (common/merge-bytes node authentication-path-segment))
-                                         new-adrs'])
-                                      (let [new-adrs' (address/set-tree-index new-adrs (int (/ (dec tree-index) 2)))]
-                                        [(H pk-seed new-adrs' (common/merge-bytes authentication-path-segment node))
-                                         new-adrs']))))
-                                [node-0
-                                 (-> adrs
-                                     (address/set-type-and-clear :tree)
-                                     (address/set-tree-index idx))]
-                                (range (:h' parameters)))]
-    public-key'))
+        [public-key _] (reduce (fn [[node' adrs'] k]
+                                 (let [adrs'' (address/set-tree-height adrs' (inc k))
+                                       tree-index' (address/get-tree-index adrs'')
+                                       authentication-path-segment' (nth authentication-path k)]
+                                   (if (even? (int (math/floor (/ index (int (math/pow 2 k))))))
+                                     (let [adrs''' (address/set-tree-index adrs'' (int (/ tree-index' 2)))]
+                                       [(H pk-seed adrs''' (common/merge-bytes node'
+                                                                               authentication-path-segment'))
+                                        adrs'''])
+                                     (let [adrs''' (address/set-tree-index adrs'' (int (/ (dec tree-index') 2)))]
+                                       [(H pk-seed adrs''' (common/merge-bytes authentication-path-segment'
+                                                                               node'))
+                                        adrs''']))))
+                               [node-0
+                                (-> adrs
+                                    (address/set-type-and-clear :tree)
+                                    (address/set-tree-index index))]
+                               (range (:h' parameters)))]
+    public-key))

@@ -67,11 +67,13 @@
 
 (defn get-key-pair-address
   [adrs]
-  (common/byte-array->integer (common/slice-bytes adrs 20 24)))
+  (common/byte-array->integer
+   (common/slice-bytes adrs 20 24)))
 
 (defn get-tree-index
   [adrs]
-  (common/byte-array->integer (common/slice-bytes adrs 28 32)))
+  (common/byte-array->integer
+   (common/slice-bytes adrs 28 32)))
 
 (defn new-address
   []

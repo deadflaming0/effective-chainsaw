@@ -23,9 +23,14 @@
         leaf-index (mod (common/byte-array->integer
                          (common/slice-bytes digest from-2 to-2))
                         (int (math/pow 2 (/ h d))))]
-    [message-digest
-     tree-index
-     leaf-index]))
+    [message-digest tree-index leaf-index]))
+
+(defn- fors-address
+  [tree-index leaf-index]
+  (-> (address/new-address)
+      (address/set-tree-address tree-index)
+      (address/set-type-and-clear :fors-tree)
+      (address/set-key-pair-address leaf-index)))
 
 (defn sign*
   [{:keys [parameters functions] :as parameter-set-data} M {:keys [sk-seed sk-prf pk-seed pk-root]}]
@@ -33,16 +38,24 @@
         randomizer (PRF_msg sk-prf pk-seed M)
         digest (H_msg randomizer pk-seed pk-root M)
         [message-digest tree-index leaf-index] (parse-digest digest parameters)
-        adrs (-> (address/new-address)
-                 (address/set-tree-address tree-index)
-                 (address/set-type-and-clear :fors-tree)
-                 (address/set-key-pair-address leaf-index))
-        fors-signature (fors/sign parameter-set-data message-digest sk-seed pk-seed adrs)
-        fors-public-key (fors/compute-public-key-from-signature parameter-set-data fors-signature message-digest pk-seed adrs)
-        hypertree-signature (hypertree/sign parameter-set-data fors-public-key sk-seed pk-seed tree-index leaf-index)]
-    [randomizer
-     fors-signature
-     hypertree-signature]))
+        fors-adrs (fors-address tree-index leaf-index)
+        fors-signature (fors/sign parameter-set-data
+                                  message-digest
+                                  sk-seed
+                                  pk-seed
+                                  fors-adrs)
+        fors-public-key (fors/compute-public-key-from-signature parameter-set-data
+                                                                fors-signature
+                                                                message-digest
+                                                                pk-seed
+                                                                fors-adrs)
+        hypertree-signature (hypertree/sign parameter-set-data
+                                            fors-public-key
+                                            sk-seed
+                                            pk-seed
+                                            tree-index
+                                            leaf-index)]
+    [randomizer fors-signature hypertree-signature]))
 
 (defn verify*
   [{:keys [parameters functions] :as parameter-set-data} M [randomizer fors-signature hypertree-signature :as slh-dsa-signature] {:keys [pk-seed pk-root]}]
@@ -51,9 +64,16 @@
         {:keys [H_msg]} functions
         digest (H_msg randomizer pk-seed pk-root M)
         [message-digest tree-index leaf-index] (parse-digest digest parameters)
-        adrs (-> (address/new-address)
-                 (address/set-tree-address tree-index)
-                 (address/set-type-and-clear :fors-tree)
-                 (address/set-key-pair-address leaf-index))
-        fors-public-key (fors/compute-public-key-from-signature parameter-set-data fors-signature message-digest pk-seed adrs)]
-    (hypertree/verify parameter-set-data fors-public-key hypertree-signature pk-seed tree-index leaf-index pk-root)))
+        fors-adrs (fors-address tree-index leaf-index)
+        fors-public-key (fors/compute-public-key-from-signature parameter-set-data
+                                                                fors-signature
+                                                                message-digest
+                                                                pk-seed
+                                                                fors-adrs)]
+    (hypertree/verify parameter-set-data
+                      fors-public-key
+                      hypertree-signature
+                      pk-seed
+                      tree-index
+                      leaf-index
+                      pk-root)))
