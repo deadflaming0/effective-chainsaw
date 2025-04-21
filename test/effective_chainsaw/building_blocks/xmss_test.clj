@@ -1,11 +1,11 @@
-(ns effective-chainsaw.xmss-test
+(ns effective-chainsaw.building-blocks.xmss-test
   (:require [clojure.test :refer :all]
-            [effective-chainsaw.address :as address]
-            [effective-chainsaw.common :as common]
-            [effective-chainsaw.parameter-sets :as parameter-sets]
-            [effective-chainsaw.randomness :as randomness]
-            [effective-chainsaw.wots :as wots]
-            [effective-chainsaw.xmss :as xmss]))
+            [effective-chainsaw.building-blocks.parameter-sets :as parameter-sets]
+            [effective-chainsaw.building-blocks.wots :as wots]
+            [effective-chainsaw.building-blocks.xmss :as xmss]
+            [effective-chainsaw.internals.address :as address]
+            [effective-chainsaw.internals.common :as common]
+            [effective-chainsaw.internals.randomness :as randomness]))
 
 (def parameter-set-name :slh-dsa-shake-128s)
 

@@ -1,9 +1,9 @@
-(ns effective-chainsaw.slh-dsa
+(ns effective-chainsaw.building-blocks.slh-dsa
   (:require [clojure.math :as math]
-            [effective-chainsaw.address :as address]
-            [effective-chainsaw.common :as common]
-            [effective-chainsaw.fors :as fors]
-            [effective-chainsaw.hypertree :as hypertree]))
+            [effective-chainsaw.building-blocks.fors :as fors]
+            [effective-chainsaw.building-blocks.hypertree :as hypertree]
+            [effective-chainsaw.internals.address :as address]
+            [effective-chainsaw.internals.common :as common]))
 
 (defn- parse-digest
   [digest {:keys [k a h d]}]

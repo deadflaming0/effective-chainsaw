@@ -1,6 +1,6 @@
-(ns effective-chainsaw.parameter-sets
-  (:require [effective-chainsaw.common :as common]
-            [effective-chainsaw.primitives :as primitives]))
+(ns effective-chainsaw.building-blocks.parameter-sets
+  (:require [effective-chainsaw.internals.common :as common]
+            [effective-chainsaw.internals.primitives :as primitives]))
 
 (def parameter-set->parameters ;; add sha2 variants later
   {:slh-dsa-shake-128s {:n 16 :h 63 :d 7 :h' 9 :a 12 :k 14 :lg_w 4 :m 30 :pk-bytes 32 :sig-bytes 7856}

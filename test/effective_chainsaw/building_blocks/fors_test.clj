@@ -1,13 +1,13 @@
-(ns effective-chainsaw.fors-test
+(ns effective-chainsaw.building-blocks.fors-test
   (:require [clojure.math :as math]
             [clojure.test :refer :all]
-            [effective-chainsaw.address :as address]
-            [effective-chainsaw.common :as common]
-            [effective-chainsaw.fors :as fors]
-            [effective-chainsaw.hypertree :as hypertree]
-            [effective-chainsaw.parameter-sets :as parameter-sets]
-            [effective-chainsaw.randomness :as randomness]
-            [effective-chainsaw.xmss :as xmss]))
+            [effective-chainsaw.building-blocks.fors :as fors]
+            [effective-chainsaw.building-blocks.hypertree :as hypertree]
+            [effective-chainsaw.building-blocks.parameter-sets :as parameter-sets]
+            [effective-chainsaw.building-blocks.xmss :as xmss]
+            [effective-chainsaw.internals.address :as address]
+            [effective-chainsaw.internals.common :as common]
+            [effective-chainsaw.internals.randomness :as randomness]))
 
 (def parameter-set-name :slh-dsa-shake-128s)
 

@@ -1,7 +1,7 @@
-(ns effective-chainsaw.fors
+(ns effective-chainsaw.building-blocks.fors
   (:require [clojure.math :as math]
-            [effective-chainsaw.address :as address]
-            [effective-chainsaw.common :as common]))
+            [effective-chainsaw.internals.address :as address]
+            [effective-chainsaw.internals.common :as common]))
 
 (defn generate-private-key
   "Generates a FORS private-key value."

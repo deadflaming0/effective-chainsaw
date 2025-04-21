@@ -1,4 +1,4 @@
-(ns effective-chainsaw.primitives
+(ns effective-chainsaw.internals.primitives
   (:import (org.bouncycastle.crypto.digests SHAKEDigest)))
 
 (defn- shake256-algorithm [] (SHAKEDigest. 256))

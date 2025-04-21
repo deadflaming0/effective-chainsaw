@@ -1,7 +1,7 @@
-(ns effective-chainsaw.wots
+(ns effective-chainsaw.building-blocks.wots
   (:require [clojure.math :as math]
-            [effective-chainsaw.address :as address]
-            [effective-chainsaw.common :as common]))
+            [effective-chainsaw.internals.address :as address]
+            [effective-chainsaw.internals.common :as common]))
 
 (defn- log2
   [x]

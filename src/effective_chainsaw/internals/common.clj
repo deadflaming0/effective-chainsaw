@@ -1,4 +1,4 @@
-(ns effective-chainsaw.common
+(ns effective-chainsaw.internals.common
   (:require [clojure.math :as math]))
 
 (defn merge-bytes

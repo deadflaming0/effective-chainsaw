@@ -1,10 +1,10 @@
 (ns effective-chainsaw.api
-  (:require [effective-chainsaw.address :as address]
-            [effective-chainsaw.common :as common]
-            [effective-chainsaw.parameter-sets :as parameter-sets]
-            [effective-chainsaw.randomness :as randomness]
-            [effective-chainsaw.slh-dsa :as slh-dsa]
-            [effective-chainsaw.xmss :as xmss]))
+  (:require [effective-chainsaw.building-blocks.parameter-sets :as parameter-sets]
+            [effective-chainsaw.building-blocks.slh-dsa :as slh-dsa]
+            [effective-chainsaw.building-blocks.xmss :as xmss]
+            [effective-chainsaw.internals.address :as address]
+            [effective-chainsaw.internals.common :as common]
+            [effective-chainsaw.internals.randomness :as randomness]))
 
 (defn generate-key-pair
   [parameter-set-name]
@@ -52,7 +52,7 @@
   (do
     (def parameter-set-name :slh-dsa-shake-128s)
 
-    (def key-pair (time (generate-key-pair parameter-set-name))) ; #'effective-chainsaw.api/key-pair
+    (def key-pair (time (generate-key-pair parameter-set-name)))
 
     (def M (byte-array [0x01 0x02 0x03 0x04 0x05]))
     (def context (byte-array [0xff]))

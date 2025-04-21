@@ -1,8 +1,8 @@
-(ns effective-chainsaw.xmss
+(ns effective-chainsaw.building-blocks.xmss
   (:require [clojure.math :as math]
-            [effective-chainsaw.address :as address]
-            [effective-chainsaw.common :as common]
-            [effective-chainsaw.wots :as wots]))
+            [effective-chainsaw.building-blocks.wots :as wots]
+            [effective-chainsaw.internals.address :as address]
+            [effective-chainsaw.internals.common :as common]))
 
 (defn subtree
   "Computes the root of a Merkle subtree of WOTS+ public keys."

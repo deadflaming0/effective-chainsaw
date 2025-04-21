@@ -1,5 +1,5 @@
-(ns effective-chainsaw.address
-  (:require [effective-chainsaw.common :as common]))
+(ns effective-chainsaw.internals.address
+  (:require [effective-chainsaw.internals.common :as common]))
 
 (def ^:private address-size 32) ;; understand how to deal with compressed addresses
 

@@ -1,8 +1,8 @@
-(ns effective-chainsaw.hypertree
+(ns effective-chainsaw.building-blocks.hypertree
   (:require [clojure.math :as math]
-            [effective-chainsaw.address :as address]
-            [effective-chainsaw.common :as common]
-            [effective-chainsaw.xmss :as xmss]))
+            [effective-chainsaw.building-blocks.xmss :as xmss]
+            [effective-chainsaw.internals.address :as address]
+            [effective-chainsaw.internals.common :as common]))
 
 (defn sign
   "Generates a hypertree signature."
