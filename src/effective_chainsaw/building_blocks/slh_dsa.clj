@@ -33,10 +33,10 @@
       (address/set-key-pair-address leaf-index)))
 
 (defn sign*
-  [{:keys [parameters functions] :as parameter-set-data} M {:keys [sk-seed sk-prf pk-seed pk-root]}]
+  [{:keys [parameters functions] :as parameter-set-data} M {:keys [sk-seed sk-prf pk-seed pk-root]} additional-randomness]
   (let [{:keys [PRF_msg H_msg]} functions
         randomizer (PRF_msg sk-prf pk-seed M)
-        digest (H_msg randomizer pk-seed pk-root M)
+        digest (H_msg randomizer additional-randomness pk-root M)
         [message-digest tree-index leaf-index] (parse-digest digest parameters)
         fors-adrs (fors-address tree-index leaf-index)
         fors-signature (fors/sign parameter-set-data

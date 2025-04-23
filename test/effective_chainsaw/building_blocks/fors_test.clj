@@ -1,4 +1,5 @@
 (ns effective-chainsaw.building-blocks.fors-test
+  {:clj-kondo/config '{:linters {:refer-all {:level :off}}}}
   (:require [clojure.math :as math]
             [clojure.test :refer :all]
             [effective-chainsaw.building-blocks.fors :as fors]

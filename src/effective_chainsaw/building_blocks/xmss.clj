@@ -6,25 +6,25 @@
 
 (defn subtree
   "Computes the root of a Merkle subtree of WOTS+ public keys."
-  [{:keys [functions] :as parameter-set-data} sk-seed i z pk-seed adrs]
+  [{:keys [functions] :as parameter-set-data} sk-seed index height pk-seed adrs]
   ;; TODO: add validation
-  (if (zero? z)
-    (let [wots-public-key (wots/generate-public-key parameter-set-data
+  (if (zero? height)
+    (let [wots-pk-adrs (-> adrs
+                           (address/set-type-and-clear :wots-hash)
+                           (address/set-key-pair-address index))
+          wots-public-key (wots/generate-public-key parameter-set-data
                                                     sk-seed
                                                     pk-seed
-                                                    (-> adrs
-                                                        (address/set-type-and-clear :wots-hash)
-                                                        (address/set-key-pair-address i)))]
+                                                    wots-pk-adrs)]
       wots-public-key)
-    (let [left-node (subtree parameter-set-data sk-seed (* 2 i) (dec z) pk-seed adrs)
-          right-node (subtree parameter-set-data sk-seed (inc (* 2 i)) (dec z) pk-seed adrs)
+    (let [left-node (subtree parameter-set-data sk-seed (* 2 index) (dec height) pk-seed adrs)
+          right-node (subtree parameter-set-data sk-seed (inc (* 2 index)) (dec height) pk-seed adrs)
           H (:H functions)
-          node (H pk-seed
-                  (-> adrs
-                      (address/set-type-and-clear :tree)
-                      (address/set-tree-height z)
-                      (address/set-tree-index i))
-                  (common/merge-bytes left-node right-node))]
+          node-adrs (-> adrs
+                        (address/set-type-and-clear :tree)
+                        (address/set-tree-height height)
+                        (address/set-tree-index index))
+          node (H pk-seed node-adrs (common/merge-bytes left-node right-node))]
       node)))
 
 (defn sign

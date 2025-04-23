@@ -3,4 +3,5 @@
          :exec-fn kaocha.runner/exec-fn
          :exec-args {}}}
  :deps
- {org.bouncycastle/bcprov-jdk18on {:mvn/version "1.78"}}}
+ {org.bouncycastle/bcprov-jdk18on {:mvn/version "1.78"}
+  org.clojure/data.json {:mvn/version "2.5.1"}}}

@@ -1,4 +1,5 @@
 (ns effective-chainsaw.building-blocks.hypertree-test
+  {:clj-kondo/config '{:linters {:refer-all {:level :off}}}}
   (:require [clojure.test :refer :all]
             [effective-chainsaw.building-blocks.hypertree :as hypertree]
             [effective-chainsaw.building-blocks.parameter-sets :as parameter-sets]

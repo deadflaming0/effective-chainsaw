@@ -26,7 +26,8 @@
   "Chaining function used in WOTS+."
   [{:keys [F]} X i s pk-seed adrs]
   (reduce #(F pk-seed (address/set-hash-address adrs %2) %1)
-          X (range i (+ i s))))
+          X
+          (range i (+ i s))))
 
 (defn generate-public-key
   "Generates a WOTS+ public key."

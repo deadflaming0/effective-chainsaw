@@ -33,12 +33,13 @@
 
 (defn integer->byte-array
   [x n]
-  (byte-array (map #(unchecked-byte (bit-shift-right x (* 8 (- n 1 %))))
-                   (range n))))
+  (byte-array
+   (for [i (range (dec n) -1 -1)]
+     (unchecked-byte (bit-and (bit-shift-right x (* 8 i)) 0xff)))))
 
 (defn byte-array->integer
   [X]
-  (reduce #(+ %1 (bit-and %2 0xff)) 0 X))
+  (reduce #(+ (bit-shift-left %1 8) (bit-and %2 0xff)) 0 X))
 
 (defn- byte->bits
   [b]

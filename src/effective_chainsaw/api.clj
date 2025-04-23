@@ -3,16 +3,12 @@
             [effective-chainsaw.building-blocks.slh-dsa :as slh-dsa]
             [effective-chainsaw.building-blocks.xmss :as xmss]
             [effective-chainsaw.internals.address :as address]
-            [effective-chainsaw.internals.common :as common]
-            [effective-chainsaw.internals.randomness :as randomness]))
+            [effective-chainsaw.internals.common :as common]))
 
 (defn generate-key-pair
-  [parameter-set-name]
+  [parameter-set-name sk-seed sk-prf pk-seed]
   (let [{:keys [parameters] :as parameter-set-data} (parameter-sets/parameter-set-data parameter-set-name)
-        {:keys [n d h']} parameters
-        sk-seed (randomness/random-bytes n)
-        sk-prf (randomness/random-bytes n)
-        pk-seed (randomness/random-bytes n)
+        {:keys [d h']} parameters
         adrs (-> (address/new-address)
                  (address/set-layer-address (dec d)))
         pk-root (xmss/subtree parameter-set-data sk-seed 0 h' pk-seed adrs)]
@@ -37,27 +33,15 @@
       (throw (Exception. "Context length must be < 255 bytes")))))
 
 (defn sign
-  [parameter-set-name M context private-key]
-  (let [parameter-set-data (parameter-sets/parameter-set-data parameter-set-name)
-        M' (prepend-context! M context)]
-    (slh-dsa/sign* parameter-set-data M' private-key)))
+  ([parameter-set-name M context private-key]
+   (sign parameter-set-name M context private-key (:pk-seed private-key)))
+  ([parameter-set-name M context private-key additional-randomness]
+   (let [parameter-set-data (parameter-sets/parameter-set-data parameter-set-name)
+         M' (prepend-context! M context)]
+     (slh-dsa/sign* parameter-set-data M' private-key additional-randomness))))
 
 (defn verify
   [parameter-set-name M signature context public-key]
   (let [parameter-set-data (parameter-sets/parameter-set-data parameter-set-name)
         M' (prepend-context! M context)]
     (slh-dsa/verify* parameter-set-data M' signature public-key)))
-
-(comment
-  (do
-    (def parameter-set-name :slh-dsa-shake-128s)
-
-    (def key-pair (time (generate-key-pair parameter-set-name)))
-
-    (def M (byte-array [0x01 0x02 0x03 0x04 0x05]))
-    (def context (byte-array [0xff]))
-
-    (def signature (time (sign parameter-set-name M context (:private-key key-pair))))
-
-    (assert (time (verify parameter-set-name M signature context (:public-key key-pair)))
-            "NOOO!!!!!")))
