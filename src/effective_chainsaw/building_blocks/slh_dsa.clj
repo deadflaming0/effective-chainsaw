@@ -10,20 +10,28 @@
   (let [message-digest-size-in-bytes (int (math/ceil (/ (* k a) 8)))
         tree-index-size-in-bytes (int (math/ceil (/ (- h (/ h d)) 8)))
         leaf-index-size-in-bytes (int (math/ceil (/ h (* 8 d))))
+
         from-0 0
         to-0 message-digest-size-in-bytes
         from-1 to-0
         to-1 (+ from-1 tree-index-size-in-bytes)
         from-2 to-1
         to-2 (+ from-2 leaf-index-size-in-bytes)
-        message-digest (common/slice-bytes digest from-0 to-0)
-        tree-index (mod (common/byte-array->integer
-                         (common/slice-bytes digest from-1 to-1))
-                        (long (math/pow 2 (- h (/ h d)))))
-        leaf-index (mod (common/byte-array->integer
-                         (common/slice-bytes digest from-2 to-2))
-                        (int (math/pow 2 (/ h d))))]
-    [message-digest tree-index leaf-index]))
+
+        message-digest-bytes (common/slice-bytes digest from-0 to-0)
+
+        tree-index-bytes (common/slice-bytes digest from-1 to-1)
+        tree-index-bytes-to-integer (BigInteger. 1 tree-index-bytes)
+        tree-index (.mod tree-index-bytes-to-integer
+                         (.pow BigInteger/TWO (- h (/ h d))))
+
+        leaf-index-bytes (common/slice-bytes digest from-2 to-2)
+        leaf-index-bytes-to-integer (BigInteger. 1 leaf-index-bytes)
+        leaf-index (.mod leaf-index-bytes-to-integer
+                         (.pow BigInteger/TWO (/ h d)))]
+    [message-digest-bytes
+     tree-index
+     leaf-index]))
 
 (defn- fors-address
   [tree-index leaf-index]
@@ -35,8 +43,13 @@
 (defn sign*
   [{:keys [parameters functions] :as parameter-set-data} M {:keys [sk-seed sk-prf pk-seed pk-root]} additional-randomness]
   (let [{:keys [PRF_msg H_msg]} functions
-        randomizer (PRF_msg sk-prf pk-seed M)
-        digest (H_msg randomizer additional-randomness pk-root M)
+        randomizer (PRF_msg sk-prf
+                            additional-randomness
+                            M)
+        digest (H_msg randomizer
+                      pk-seed
+                      pk-root
+                      M)
         [message-digest tree-index leaf-index] (parse-digest digest parameters)
         fors-adrs (fors-address tree-index leaf-index)
         fors-signature (fors/sign parameter-set-data
@@ -55,14 +68,28 @@
                                             pk-seed
                                             tree-index
                                             leaf-index)]
-    [randomizer fors-signature hypertree-signature]))
+    (common/merge-bytes randomizer
+                        fors-signature
+                        hypertree-signature)))
+
+(defn- parse-signature
+  [signature {:keys [n k a]}]
+  (let [first-cut n
+        second-cut (* (+ 1 (* k (inc a))) n)]
+    [(common/slice-bytes signature 0 first-cut)
+     (common/slice-bytes signature first-cut second-cut)
+     (common/slice-bytes signature second-cut (alength signature))]))
 
 (defn verify*
-  [{:keys [parameters functions] :as parameter-set-data} M [randomizer fors-signature hypertree-signature :as slh-dsa-signature] {:keys [pk-seed pk-root]}]
+  [{:keys [parameters functions] :as parameter-set-data} M signature {:keys [pk-seed pk-root]}]
   (let [{:keys [sig-bytes]} parameters
-        _ (common/validate-length! sig-bytes (apply concat (flatten slh-dsa-signature)))
+        _ (common/validate-length! sig-bytes signature)
+        [randomizer fors-signature hypertree-signature] (parse-signature signature parameters)
         {:keys [H_msg]} functions
-        digest (H_msg randomizer pk-seed pk-root M)
+        digest (H_msg randomizer
+                      pk-seed
+                      pk-root
+                      M)
         [message-digest tree-index leaf-index] (parse-digest digest parameters)
         fors-adrs (fors-address tree-index leaf-index)
         fors-public-key (fors/compute-public-key-from-signature parameter-set-data

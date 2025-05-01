@@ -1,5 +1,6 @@
 (ns effective-chainsaw.building-blocks.hypertree
   (:require [clojure.math :as math]
+            [effective-chainsaw.building-blocks.wots :as wots]
             [effective-chainsaw.building-blocks.xmss :as xmss]
             [effective-chainsaw.internals.address :as address]
             [effective-chainsaw.internals.common :as common]))
@@ -23,8 +24,9 @@
                                                                      adrs)
         {:keys [d h']} parameters
         {:keys [hypertree-signature]} (reduce (fn [{:keys [hypertree-signature current-root tree-index]} j]
-                                                (let [leaf-index' (mod tree-index (int (math/pow 2 h')))
-                                                      tree-index' (bit-shift-right tree-index h')
+                                                (let [leaf-index' (.mod tree-index
+                                                                        (BigInteger/valueOf (int (math/pow 2 h'))))
+                                                      tree-index' (.shiftRight tree-index h')
                                                       adrs' (-> adrs
                                                                 (address/set-layer-address j)
                                                                 (address/set-tree-address tree-index'))
@@ -33,30 +35,37 @@
                                                                                  sk-seed
                                                                                  leaf-index'
                                                                                  pk-seed
-                                                                                 adrs')]
-                                                  (if (< j d) ;; TODO: is this really necessary?
-                                                    (let [xmss-public-key' (xmss/compute-public-key-from-signature parameter-set-data
-                                                                                                                   leaf-index'
-                                                                                                                   xmss-signature'
-                                                                                                                   current-root
-                                                                                                                   pk-seed
-                                                                                                                   adrs')]
-                                                      {:hypertree-signature (conj hypertree-signature xmss-signature')
-                                                       :current-root xmss-public-key'
-                                                       :tree-index tree-index'})
-                                                    hypertree-signature)))
-                                              {:hypertree-signature [leaf-xmss-signature]
+                                                                                 adrs')
+                                                      xmss-public-key' (xmss/compute-public-key-from-signature parameter-set-data
+                                                                                                               leaf-index'
+                                                                                                               xmss-signature'
+                                                                                                               current-root
+                                                                                                               pk-seed
+                                                                                                               adrs')]
+                                                  {:hypertree-signature (common/merge-bytes hypertree-signature xmss-signature')
+                                                   :current-root xmss-public-key'
+                                                   :tree-index tree-index'}))
+                                              {:hypertree-signature leaf-xmss-signature
                                                :current-root leaf-xmss-public-key
                                                :tree-index tree-index}
                                               (range 1 d))]
     hypertree-signature))
+
+(defn- extract-xmss-signature
+  [hypertree-signature {:keys [h' n lg_w]} j]
+  (let [{:keys [len]} (wots/get-additional-values {:n n :lg_w lg_w})
+        from (* j (+ h' len) n)
+        to (* (inc j) (+ h' len) n)]
+    (common/slice-bytes hypertree-signature
+                        from
+                        to)))
 
 (defn verify
   "Verifies a hypertree signature."
   [{:keys [parameters] :as parameter-set-data} M hypertree-signature pk-seed tree-index leaf-index pk-root]
   (let [adrs (-> (address/new-address)
                  (address/set-tree-address tree-index))
-        leaf-xmss-signature (first hypertree-signature)
+        leaf-xmss-signature (extract-xmss-signature hypertree-signature parameters 0)
         leaf-xmss-public-key (xmss/compute-public-key-from-signature parameter-set-data
                                                                      leaf-index
                                                                      leaf-xmss-signature
@@ -65,12 +74,13 @@
                                                                      adrs)
         {:keys [d h']} parameters
         {:keys [current-root]} (reduce (fn [{:keys [current-root tree-index]} j]
-                                         (let [leaf-index' (mod tree-index (int (math/pow 2 h')))
-                                               tree-index' (bit-shift-right tree-index h')
+                                         (let [leaf-index' (.mod tree-index
+                                                                 (BigInteger/valueOf (math/pow 2 h')))
+                                               tree-index' (.shiftRight tree-index h')
                                                adrs' (-> adrs
                                                          (address/set-layer-address j)
                                                          (address/set-tree-address tree-index'))
-                                               xmss-signature' (nth hypertree-signature j)
+                                               xmss-signature' (extract-xmss-signature hypertree-signature parameters j)
                                                xmss-public-key' (xmss/compute-public-key-from-signature parameter-set-data
                                                                                                         leaf-index'
                                                                                                         xmss-signature'

@@ -41,35 +41,55 @@
                                   (-> adrs
                                       (address/set-type-and-clear :wots-hash)
                                       (address/set-key-pair-address index)))]
-    [wots-signature authentication-path]))
+    (common/merge-bytes wots-signature authentication-path)))
+
+(defn- extract-wots-signature
+  [xmss-signature {:keys [n lg_w]}]
+  (let [{:keys [len]} (wots/get-additional-values {:n n :lg_w lg_w})]
+    (common/slice-bytes xmss-signature
+                        0
+                        (* len n))))
+
+(defn- extract-authentication-path-segment
+  [xmss-signature {:keys [n lg_w]} k]
+  (let [{:keys [len]} (wots/get-additional-values {:n n :lg_w lg_w})
+        wots-signature-length (* len n)
+        from (+ wots-signature-length (* k n))
+        to (+ from n)]
+    (common/slice-bytes xmss-signature
+                        from
+                        to)))
 
 (defn compute-public-key-from-signature
   "Computes an XMSS public key from an XMSS signature."
-  [{:keys [parameters functions] :as parameter-set-data} index [wots-signature authentication-path] M pk-seed adrs]
-  (let [node-0 (wots/compute-public-key-from-signature parameter-set-data
+  [{:keys [parameters functions] :as parameter-set-data} index xmss-signature M pk-seed adrs]
+  (let [wots-signature (extract-wots-signature xmss-signature parameters)
+        node-0 (wots/compute-public-key-from-signature parameter-set-data
                                                        wots-signature
                                                        M
                                                        pk-seed
                                                        (-> adrs
                                                            (address/set-type-and-clear :wots-hash)
                                                            (address/set-key-pair-address index)))
+        node-0-adrs (-> adrs
+                        (address/set-type-and-clear :tree)
+                        (address/set-tree-index index))
         H (:H functions)
         [public-key _] (reduce (fn [[node' adrs'] k]
                                  (let [adrs'' (address/set-tree-height adrs' (inc k))
                                        tree-index' (address/get-tree-index adrs'')
-                                       authentication-path-segment' (nth authentication-path k)]
+                                       authentication-path-segment (extract-authentication-path-segment xmss-signature
+                                                                                                        parameters
+                                                                                                        k)]
                                    (if (even? (int (math/floor (/ index (int (math/pow 2 k))))))
                                      (let [adrs''' (address/set-tree-index adrs'' (int (/ tree-index' 2)))]
                                        [(H pk-seed adrs''' (common/merge-bytes node'
-                                                                               authentication-path-segment'))
+                                                                               authentication-path-segment))
                                         adrs'''])
                                      (let [adrs''' (address/set-tree-index adrs'' (int (/ (dec tree-index') 2)))]
-                                       [(H pk-seed adrs''' (common/merge-bytes authentication-path-segment'
+                                       [(H pk-seed adrs''' (common/merge-bytes authentication-path-segment
                                                                                node'))
                                         adrs''']))))
-                               [node-0
-                                (-> adrs
-                                    (address/set-type-and-clear :tree)
-                                    (address/set-tree-index index))]
+                               [node-0 node-0-adrs]
                                (range (:h' parameters)))]
     public-key))

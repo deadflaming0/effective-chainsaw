@@ -33,13 +33,21 @@
 
 (defn integer->byte-array
   [x n]
-  (byte-array
-   (for [i (range (dec n) -1 -1)]
-     (unchecked-byte (bit-and (bit-shift-right x (* 8 i)) 0xff)))))
+  (let [ba (byte-array n)]
+    (reduce #(let [idx' (- n 1 %2)
+                   val' (int (mod %1 256))]
+               (aset-byte ba idx' (unchecked-byte val'))
+               (.shiftRight (BigInteger. (str %1)) 8))
+            (BigInteger. (str x))
+            (range n))
+    ba))
 
 (defn byte-array->integer
   [X]
-  (reduce #(+ (bit-shift-left %1 8) (bit-and %2 0xff)) 0 X))
+  (reduce #(+ (bit-shift-left %1 8)
+              (bit-and %2 0xff))
+          0
+          X))
 
 (defn- byte->bits
   [b]
@@ -56,5 +64,7 @@
   In FIPS-205 lg_w is 4, and a can be 6, 8, 9, 12, or 14."
   [X base output-length]
   (validate-length! (int (math/ceil (/ (* output-length base) 8))) X)
-  (let [blocks (map bits->integer (partition base (mapcat byte->bits X)))]
-    (take-last output-length blocks)))
+  (let [X-bits (mapcat byte->bits X)
+        partitioned (partition-all base X-bits)
+        blocks (map bits->integer partitioned)]
+    (take output-length blocks)))

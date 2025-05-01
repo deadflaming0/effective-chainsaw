@@ -24,13 +24,14 @@
 (defn- prepend-context!
   [M context]
   (let [context-length (count context)]
-    (if (> 255 context-length)
-      (common/merge-bytes
-       (common/integer->byte-array 0 1)
-       (common/integer->byte-array context-length 1)
-       context
-       M)
-      (throw (Exception. "Context length must be < 255 bytes")))))
+    (cond
+      (zero? context-length) M
+      (< context-length 255) (common/merge-bytes
+                              (common/integer->byte-array 0 1)
+                              (common/integer->byte-array context-length 1)
+                              context
+                              M)
+      :else (throw (Exception. "Context length must be < 255 bytes")))))
 
 (defn sign
   ([parameter-set-name M context private-key]

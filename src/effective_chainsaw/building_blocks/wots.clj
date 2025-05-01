@@ -53,7 +53,7 @@
   [blocks lg_w w len_2]
   (let [left-shift-by (mod (- 8 (mod (* len_2 lg_w) 8)) 8)
         checksum (reduce (fn [accumulator i]
-                           (- i 1 (+ accumulator w)))
+                           (- (+ accumulator w) 1 i))
                          0 blocks)
         checksum-size (int (math/ceil (/ (* len_2 lg_w) 8)))]
     (common/integer->byte-array (bit-shift-left checksum left-shift-by) checksum-size)))
@@ -108,22 +108,28 @@
                         (range len))]
     signature))
 
+(defn- extract-signature-element
+  [signature n i]
+  (common/slice-bytes signature
+                      (* n i)
+                      (+ (* n i) n)))
+
 (defn compute-public-key-from-signature
   "Computes a WOTS+ public key from a message and its signature."
   [{:keys [parameters functions]} signature M pk-seed adrs]
-  (let [{:keys [lg_w]} parameters
+  (let [{:keys [lg_w n]} parameters
         {:keys [w len_1 len_2 len]} (get-additional-values parameters)
         message (common/byte-array->base-2b M lg_w len_1)
         checksum (common/byte-array->base-2b (calculate-checksum message lg_w w len_2) lg_w len_2)
         message+checksum (common/merge-bytes message checksum)
-        public-values (pmap (fn [signature-element message+checksum-element index]
-                              (chain functions
-                                     signature-element
-                                     message+checksum-element
-                                     (- w 1 message+checksum-element)
-                                     pk-seed
-                                     (address/set-chain-address adrs index)))
-                            signature
+        public-values (pmap (fn [message+checksum-element index]
+                              (let [signature-element (extract-signature-element signature n index)]
+                                (chain functions
+                                       signature-element
+                                       message+checksum-element
+                                       (- w 1 message+checksum-element)
+                                       pk-seed
+                                       (address/set-chain-address adrs index))))
                             message+checksum
                             (range len))
         key-pair-address (address/get-key-pair-address adrs)
