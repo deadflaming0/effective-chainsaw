@@ -10,6 +10,13 @@ jobs:
     name: Validate PR
     runs-on: ubuntu-latest
 
+    strategy:
+      matrix:
+        test-var:
+          - effective-chainsaw.api-test/generate-key-pair-test
+          - effective-chainsaw.api-test/sign-test
+          - effective-chainsaw.api-test/verify-test
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -24,6 +31,8 @@ jobs:
         uses: DeLaGuardo/setup-clojure@13.2
         with:
           cli: latest
+          clj-kondo: latest
+          cljfmt: latest
 
       - name: Cache Clojure dependencies
         uses: actions/cache@v4
@@ -39,17 +48,14 @@ jobs:
       - name: Pre-download project dependencies
         run: clojure -P
 
-      - name: Install cljfmt tool
-        run: clojure -Ttools install io.github.weavejester/cljfmt '{:git/tag "0.13.1" :git/sha "7de2860"}' :as cljfmt
-
       - name: Run cljfmt
-        run: clojure -Tcljfmt fix '{:sort-ns-references? true}'
+        run: cljfmt fix
 
       - name: Run clj-kondo (src)
-        run: clojure -Sdeps '{:deps {clj-kondo/clj-kondo {:mvn/version "RELEASE"}}}' -M -m clj-kondo.main --lint src
+        run: clj-kondo --lint src
 
       - name: Run clj-kondo (test)
-        run: clojure -Sdeps '{:deps {clj-kondo/clj-kondo {:mvn/version "RELEASE"}}}' -M -m clj-kondo.main --lint test
+        run: clj-kondo --lint test
 
-      - name: Run Kaocha tests
-        run: clojure -X:test :reporter kaocha.report/documentation
+      - name: Run Kaocha tests for ${{ matrix.test-var }}
+        run: bin/kaocha --focus ${{ matrix.test-var }} --reporter documentation
