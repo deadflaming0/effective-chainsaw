@@ -42,17 +42,14 @@ jobs:
       - name: Install cljfmt tool
         run: clojure -Ttools install io.github.weavejester/cljfmt '{:git/tag "0.13.1" :git/sha "7de2860"}' :as cljfmt
 
-      - name: Install clj-kondo tool
-        run: clojure -Ttools install clj-kondo/clj-kondo '{:git/tag "v2025.04.07" :git/sha "e499ad8"}' :as clj-kondo
-
       - name: Run cljfmt
         run: clojure -Tcljfmt fix '{:sort-ns-references? true}'
 
       - name: Run clj-kondo (src)
-        run: clojure -Tclj-kondo lint :lint '"src"'
+        run: clojure -Sdeps '{:deps {clj-kondo/clj-kondo {:mvn/version "RELEASE"}}}' -M -m clj-kondo.main --lint src
 
       - name: Run clj-kondo (test)
-        run: clojure -Tclj-kondo lint :lint '"test"'
+        run: clojure -Sdeps '{:deps {clj-kondo/clj-kondo {:mvn/version "RELEASE"}}}' -M -m clj-kondo.main --lint test
 
       - name: Run Kaocha tests
         run: clojure -X:test :reporter :kaocha.report/documentation
