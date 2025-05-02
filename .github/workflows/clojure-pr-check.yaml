@@ -52,4 +52,4 @@ jobs:
         run: clojure -Sdeps '{:deps {clj-kondo/clj-kondo {:mvn/version "RELEASE"}}}' -M -m clj-kondo.main --lint test
 
       - name: Run Kaocha tests
-        run: clojure -X:test :reporter :kaocha.report/documentation
+        run: clojure -X:test :reporter kaocha.report/documentation
