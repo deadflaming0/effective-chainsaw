@@ -57,5 +57,8 @@ jobs:
       - name: Run clj-kondo (test)
         run: clj-kondo --lint test
 
+      - name: Run clj-kondo (test_vectors)
+        run: clj-kondo --lint test_vectors
+
       - name: Run Kaocha tests for ${{ matrix.test-var }}
         run: bin/kaocha --focus ${{ matrix.test-var }} --reporter documentation
