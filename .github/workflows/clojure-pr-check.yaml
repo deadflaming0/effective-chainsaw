@@ -1,0 +1,58 @@
+name: PR Check (Clojure)
+
+on:
+  pull_request:
+    branches:
+      - '**'
+
+jobs:
+  clojure-checks:
+    name: Validate PR
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Clojure
+        uses: DeLaGuardo/setup-clojure@12
+        with:
+          cli: latest
+
+      - name: Cache Clojure dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.m2
+            ~/.gitlibs
+            ~/.clojure/.cpcache
+          key: ${{ runner.os }}-clojure-${{ hashFiles('deps.edn') }}
+          restore-keys: |
+            ${{ runner.os }}-clojure-
+
+      - name: Pre-download project dependencies
+        run: clojure -P
+
+      - name: Install cljfmt tool
+        run: clojure -Ttools install io.github.weavejester/cljfmt '{:git/tag "0.13.1" :git/sha "7de2860"}' :as cljfmt
+
+      - name: Install clj-kondo tool
+        run: clojure -Ttools install clj-kondo/clj-kondo '{:git/tag "v2025.04.07" :git/sha "e499ad8"}' :as clj-kondo
+
+      - name: Run cljfmt
+        run: clojure -Tcljfmt fix '{:sort-ns-references? true}'
+
+      - name: Run clj-kondo (src)
+        run: clojure -Tclj-kondo lint :lint '"src"'
+
+      - name: Run clj-kondo (test)
+        run: clojure -Tclj-kondo lint :lint '"test"'
+
+      - name: Run Kaocha tests
+        run: clojure -X:test :reporter :kaocha.report/documentation
