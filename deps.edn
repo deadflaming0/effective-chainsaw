@@ -1,6 +1,21 @@
 {:aliases
- {:test {:main-opts ["-m" "kaocha.runner"]
-         :extra-deps {lambdaisland/kaocha {:mvn/version "1.91.1392"}}}}
+ {:benchmark
+  {:extra-deps {criterium/criterium {:mvn/version "0.4.6"}
+                org.clojure/data.json {:mvn/version "2.5.1"}}
+   :extra-paths ["benchmarks" "test_vectors"]
+   :main-opts ["-m" "benchmarks.core"]}
+
+  :dev
+  {:extra-deps  {criterium/criterium {:mvn/version "0.4.6"}
+                 lambdaisland/kaocha {:mvn/version "1.91.1392"}
+                 org.clojure/data.json {:mvn/version "2.5.1"}}
+   :extra-paths ["benchmarks" "test_vectors"]}
+
+  :test
+  {:extra-deps  {lambdaisland/kaocha {:mvn/version "1.91.1392"}
+                 org.clojure/data.json {:mvn/version "2.5.1"}}
+   :extra-paths ["test_vectors"]
+   :main-opts   ["-m" "kaocha.runner"]}}
+
  :deps
- {org.bouncycastle/bcprov-jdk18on {:mvn/version "1.78"}
-  org.clojure/data.json {:mvn/version "2.5.1"}}}
+ {org.bouncycastle/bcprov-jdk18on {:mvn/version "1.78"}}}

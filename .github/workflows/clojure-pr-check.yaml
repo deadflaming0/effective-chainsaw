@@ -51,6 +51,9 @@ jobs:
       - name: Run cljfmt
         run: cljfmt fix
 
+      - name: Run clj-kondo (benchmarks)
+        run: clj-kondo --lint benchmarks
+
       - name: Run clj-kondo (src)
         run: clj-kondo --lint src
 

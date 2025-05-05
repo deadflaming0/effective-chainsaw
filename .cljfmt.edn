@@ -1,2 +1,2 @@
 {:sort-ns-references? true
- :paths ["src" "test" "test_vectors"]}
+ :paths ["benchmarks" "src" "test" "test_vectors"]}
