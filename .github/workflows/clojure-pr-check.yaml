@@ -6,16 +6,11 @@ on:
       - '**'
 
 jobs:
-  clojure-checks:
-    name: Validate PR
+  first-job:
+    name: Run cljfmt, clj-kondo, criterium
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        test-var:
-          - effective-chainsaw.api-test/generate-key-pair-test
-          - effective-chainsaw.api-test/sign-test
-          - effective-chainsaw.api-test/verify-test
+    outputs:
+      cache-key: ${{ steps.cache-deps.outputs.cache-hit }}
 
     steps:
       - name: Checkout code
@@ -35,6 +30,7 @@ jobs:
           cljfmt: latest
 
       - name: Cache Clojure dependencies
+        id: cache-deps
         uses: actions/cache@v4
         with:
           path: |
@@ -62,6 +58,50 @@ jobs:
 
       - name: Run clj-kondo (test_vectors)
         run: clj-kondo --lint test_vectors
+
+      - name: Run criterium
+        run: clojure -M:benchmark
+
+  second-job:
+    name: Run Kaocha tests
+    needs: first-job
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        test-var:
+          - effective-chainsaw.api-test/generate-key-pair-test
+          - effective-chainsaw.api-test/sign-test
+          - effective-chainsaw.api-test/verify-test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Clojure
+        uses: DeLaGuardo/setup-clojure@13.2
+        with:
+          cli: latest
+
+      - name: Restore Clojure dependencies cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.m2
+            ~/.gitlibs
+            ~/.clojure/.cpcache
+          key: ${{ runner.os }}-clojure-${{ hashFiles('deps.edn') }}
+          restore-keys: |
+            ${{ runner.os }}-clojure-
+
+      - name: Pre-download project dependencies
+        run: clojure -P
 
       - name: Run Kaocha tests for ${{ matrix.test-var }}
         run: bin/kaocha --focus ${{ matrix.test-var }} --reporter documentation
