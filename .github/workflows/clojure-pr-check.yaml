@@ -51,11 +51,17 @@ jobs:
       - name: Run cljfmt
         run: cljfmt fix
 
+      - name: Run clj-kondo (benchmarks)
+        run: clj-kondo --lint benchmarks
+
       - name: Run clj-kondo (src)
         run: clj-kondo --lint src
 
       - name: Run clj-kondo (test)
         run: clj-kondo --lint test
+
+      - name: Run clj-kondo (test_vectors)
+        run: clj-kondo --lint test_vectors
 
       - name: Run Kaocha tests for ${{ matrix.test-var }}
         run: bin/kaocha --focus ${{ matrix.test-var }} --reporter documentation
