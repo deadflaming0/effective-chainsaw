@@ -2,8 +2,24 @@
   (:require [clojure.math :as math]
             [effective-chainsaw.building-blocks.fors :as fors]
             [effective-chainsaw.building-blocks.hypertree :as hypertree]
+            [effective-chainsaw.building-blocks.xmss :as xmss]
             [effective-chainsaw.internals.address :as address]
             [effective-chainsaw.internals.common :as common]))
+
+(defn generate-key-pair
+  [{:keys [parameters] :as parameter-set-data} sk-seed sk-prf pk-seed]
+  (let [{:keys [d h']} parameters
+        adrs (-> (address/new-address)
+                 (address/set-layer-address (dec d)))
+        pk-root (xmss/subtree parameter-set-data sk-seed 0 h' pk-seed adrs)]
+    {:private-key
+     {:sk-seed sk-seed
+      :sk-prf sk-prf
+      :pk-seed pk-seed
+      :pk-root pk-root}
+     :public-key
+     {:pk-seed pk-seed
+      :pk-root pk-root}}))
 
 (defn- parse-digest
   [digest {:keys [k a h d]}]
@@ -40,7 +56,7 @@
       (address/set-type-and-clear :fors-tree)
       (address/set-key-pair-address leaf-index)))
 
-(defn sign*
+(defn sign
   [{:keys [parameters functions] :as parameter-set-data} M {:keys [sk-seed sk-prf pk-seed pk-root]} additional-randomness]
   (let [{:keys [PRF_msg H_msg]} functions
         randomizer (PRF_msg sk-prf
@@ -80,7 +96,7 @@
      (common/slice-bytes signature first-cut second-cut)
      (common/slice-bytes signature second-cut (alength signature))]))
 
-(defn verify*
+(defn verify
   [{:keys [parameters functions] :as parameter-set-data} M signature {:keys [pk-seed pk-root]}]
   (let [{:keys [sig-bytes]} parameters
         _ (common/validate-length! sig-bytes signature)
