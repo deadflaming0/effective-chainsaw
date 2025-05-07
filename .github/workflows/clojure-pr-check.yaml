@@ -7,7 +7,7 @@ on:
 
 jobs:
   first-job:
-    name: Run cljfmt, clj-kondo, criterium
+    name: Run cljfmt and clj-kondo
     runs-on: ubuntu-latest
     outputs:
       cache-key: ${{ steps.cache-deps.outputs.cache-hit }}
@@ -58,9 +58,6 @@ jobs:
 
       - name: Run clj-kondo (test_vectors)
         run: clj-kondo --lint test_vectors
-
-      - name: Run criterium
-        run: clojure -M:benchmark
 
   second-job:
     name: Run Kaocha tests
