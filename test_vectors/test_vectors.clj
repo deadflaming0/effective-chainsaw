@@ -96,8 +96,7 @@
                :signature (hexadecimal-string->byte-array (:signature test-case))
                :context (hexadecimal-string->byte-array (:context test-case))
                :public-key (pk->public-key (:pk test-case) n)}
-       :output {:expected-test-passed? (:testPassed test-case)
-                :expected-reason (:reason test-case)}})))
+       :output {:expected-test-passed? (:testPassed test-case)}})))
 
 (defn generate-key-pair-test-groups
   []

@@ -98,25 +98,26 @@
 
 (defn verify
   [{:keys [parameters functions] :as parameter-set-data} M signature {:keys [pk-seed pk-root]}]
-  (let [{:keys [sig-bytes]} parameters
-        _ (common/validate-length! sig-bytes signature)
-        [randomizer fors-signature hypertree-signature] (parse-signature signature parameters)
-        {:keys [H_msg]} functions
-        digest (H_msg randomizer
-                      pk-seed
-                      pk-root
-                      M)
-        [message-digest tree-index leaf-index] (parse-digest digest parameters)
-        fors-adrs (fors-address tree-index leaf-index)
-        fors-public-key (fors/compute-public-key-from-signature parameter-set-data
-                                                                fors-signature
-                                                                message-digest
-                                                                pk-seed
-                                                                fors-adrs)]
-    (hypertree/verify parameter-set-data
-                      fors-public-key
-                      hypertree-signature
-                      pk-seed
-                      tree-index
-                      leaf-index
-                      pk-root)))
+  (let [{:keys [sig-bytes]} parameters]
+    (if (not= sig-bytes (count signature))
+      false
+      (let [[randomizer fors-signature hypertree-signature] (parse-signature signature parameters)
+            {:keys [H_msg]} functions
+            digest (H_msg randomizer
+                          pk-seed
+                          pk-root
+                          M)
+            [message-digest tree-index leaf-index] (parse-digest digest parameters)
+            fors-adrs (fors-address tree-index leaf-index)
+            fors-public-key (fors/compute-public-key-from-signature parameter-set-data
+                                                                    fors-signature
+                                                                    message-digest
+                                                                    pk-seed
+                                                                    fors-adrs)]
+        (hypertree/verify parameter-set-data
+                          fors-public-key
+                          hypertree-signature
+                          pk-seed
+                          tree-index
+                          leaf-index
+                          pk-root)))))

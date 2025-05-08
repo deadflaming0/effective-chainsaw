@@ -71,17 +71,6 @@
           (testing (generate-test-name parameter-set-name test-group test-case)
             (let [m (test-vectors/test-case->normalized-map parameter-set-name :verify test-case)
                   {:keys [M signature context public-key]} (:input m)
-                  {:keys [expected-test-passed? expected-reason]} (:output m)]
-              (case expected-reason
-                ("invalid signature - too large"
-                 "invalid signature - too small")
-                (is (thrown? Exception
-                             (api/verify parameter-set-name M signature context public-key)))
-
-                ("modified message"
-                 "modified signature - R"
-                 "modified signature - SIGFORS"
-                 "modified signature - SIGHT"
-                 "valid signature and message - signature should verify successfully")
-                (is (= expected-test-passed?
-                       (api/verify parameter-set-name M signature context public-key)))))))))))
+                  {:keys [expected-test-passed?]} (:output m)]
+              (is (= expected-test-passed?
+                     (api/verify parameter-set-name M signature context public-key))))))))))
