@@ -9,18 +9,24 @@
 
 (defn generate-key-pair
   [{:keys [parameters] :as parameter-set-data} sk-seed sk-prf pk-seed]
-  (let [{:keys [d h']} parameters
+  (let [{:keys [d h' pk-bytes]} parameters
         adrs (-> (address/new-address)
                  (address/set-layer-address (dec d)))
-        pk-root (xmss/subtree parameter-set-data sk-seed 0 h' pk-seed adrs)]
-    {:private-key
-     {:sk-seed sk-seed
-      :sk-prf sk-prf
-      :pk-seed pk-seed
-      :pk-root pk-root}
-     :public-key
-     {:pk-seed pk-seed
-      :pk-root pk-root}}))
+        pk-root (xmss/subtree parameter-set-data sk-seed 0 h' pk-seed adrs)
+        public-key-length (+ (count pk-seed) (count pk-root))]
+    (if (= pk-bytes public-key-length)
+      {:private-key
+       {:sk-seed sk-seed
+        :sk-prf sk-prf
+        :pk-seed pk-seed
+        :pk-root pk-root}
+       :public-key
+       {:pk-seed pk-seed
+        :pk-root pk-root}}
+      (throw (GeneralSecurityException.
+              (format "Public key should have %s bytes, but instead has %s bytes"
+                      pk-bytes
+                      public-key-length))))))
 
 (defn- parse-digest
   [digest {:keys [k a h d]}]
