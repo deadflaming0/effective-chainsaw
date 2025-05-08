@@ -1,4 +1,5 @@
 (ns effective-chainsaw.api
+  (:import (java.security GeneralSecurityException))
   (:require [effective-chainsaw.building-blocks.parameter-sets :as parameter-sets]
             [effective-chainsaw.building-blocks.slh-dsa :as slh-dsa]
             [effective-chainsaw.internals.common :as common]
@@ -24,7 +25,7 @@
                               (common/integer->byte-array context-length 1)
                               context
                               M)
-      :else (throw (Exception. "Context length must be < 255 bytes")))))
+      :else (throw (GeneralSecurityException. "Context length must be < 255 bytes")))))
 
 (defn sign
   "Generates a pure SLH-DSA signature (pre-hash mode is not supported yet)."

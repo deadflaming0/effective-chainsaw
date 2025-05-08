@@ -1,5 +1,6 @@
 (ns effective-chainsaw.api-test
   {:clj-kondo/config '{:linters {:refer-all {:level :off}}}}
+  (:import (java.security GeneralSecurityException))
   (:require [clojure.string :as string]
             [clojure.test :refer :all]
             [effective-chainsaw.api :as api]
@@ -57,7 +58,10 @@
                   signature (if (:deterministic test-group)
                               (api/sign parameter-set-name M context private-key)
                               (api/sign parameter-set-name M context private-key additional-randomness))]
-              (is (= (seq expected-signature) (seq signature))))))))))
+              (is (= (seq expected-signature) (seq signature)))))))))
+  (testing "throws exception when context string is too long"
+    (is (thrown? GeneralSecurityException
+                 (api/sign :slh-dsa-shake-128s (byte-array 1) (byte-array 256) {})))))
 
 (deftest verify-test
   (testing "official test vectors"
