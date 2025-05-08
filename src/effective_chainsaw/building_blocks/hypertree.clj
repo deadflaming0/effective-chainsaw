@@ -1,5 +1,6 @@
 (ns effective-chainsaw.building-blocks.hypertree
   (:require [clojure.math :as math]
+            [crypto.equality :refer [eq?]]
             [effective-chainsaw.building-blocks.wots :as wots]
             [effective-chainsaw.building-blocks.xmss :as xmss]
             [effective-chainsaw.internals.address :as address]
@@ -92,4 +93,4 @@
                                        {:current-root leaf-xmss-public-key
                                         :tree-index tree-index}
                                        (range 1 d))]
-    (common/equal-bytes? pk-root current-root)))
+    (eq? pk-root current-root)))
