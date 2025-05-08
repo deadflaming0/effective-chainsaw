@@ -25,7 +25,7 @@
     0x72 0x61 0x2e]))
 
 (def context
-  (byte-array [0x01 0x02 0x03]))
+  (api/generate-context 3))
 
 (defn- benchmark-signing!
   []
