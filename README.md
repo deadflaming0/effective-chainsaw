@@ -20,7 +20,6 @@ A Clojure implementation of [FIPS-205 (SLH-DSA)](https://nvlpubs.nist.gov/nistpu
 ;; - Suffix `s` stands for "relatively small signatures" (slower computation)
 ;; - Suffix `f` stands for "relatively fast signatures" (faster computation)
 ;; - SHA2 parameter sets are not available
-
 (def parameter-set-name :slh-dsa-shake-128s)
 
 ;; Returns a map of:
@@ -38,25 +37,41 @@ A Clojure implementation of [FIPS-205 (SLH-DSA)](https://nvlpubs.nist.gov/nistpu
 (def signature (sign parameter-set-name message context (:private-key key-pair)))
 
 ;; Signature must verify correctly:
-(verify parameter-set-name message signature context (:public-key key-pair)) ; true
+(verify parameter-set-name
+        message
+        signature
+        context
+        (:public-key key-pair)) ; true
 
 ;; If the message is changed...
 (def changed-message
   (.getBytes "Changed message...?" "UTF-8"))
 
 ;; ...the signature verification will fail:
-(verify parameter-set-name changed-message signature context (:public-key key-pair)) ; false
+(verify parameter-set-name
+        changed-message
+        signature
+        context
+        (:public-key key-pair)) ; false
 
 ;; If we copy the correct signature but change only a single byte...
 (def changed-signature
   (byte-array (concat (butlast signature) [0x01])))
 
 ;; ...signature verification will also fail:
-(verify parameter-set-name message changed-signature context (:public-key key-pair)) ; false
+(verify parameter-set-name
+        message
+        changed-signature
+        context
+        (:public-key key-pair)) ; false
 
 ;; Finally, even if only the context is changed...
 (def changed-context (generate-context))
 
 ;; ...the signature verification fails:
-(verify parameter-set-name message signature changed-context (:public-key key-pair)) ; false
+(verify parameter-set-name
+        message
+        signature
+        changed-context
+        (:public-key key-pair)) ; false
 ```
