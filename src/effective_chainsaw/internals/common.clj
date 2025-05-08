@@ -18,10 +18,6 @@
   [a start end]
   (java.util.Arrays/copyOfRange a start end))
 
-(defn equal-bytes?
-  [lhs rhs]
-  (java.util.Arrays/equals lhs rhs))
-
 (defn validate-length!
   [s input]
   (let [size (if (.isArray (class input))

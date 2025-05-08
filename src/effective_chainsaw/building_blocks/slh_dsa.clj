@@ -1,9 +1,32 @@
 (ns effective-chainsaw.building-blocks.slh-dsa
+  (:import (java.security GeneralSecurityException))
   (:require [clojure.math :as math]
             [effective-chainsaw.building-blocks.fors :as fors]
             [effective-chainsaw.building-blocks.hypertree :as hypertree]
+            [effective-chainsaw.building-blocks.xmss :as xmss]
             [effective-chainsaw.internals.address :as address]
             [effective-chainsaw.internals.common :as common]))
+
+(defn generate-key-pair
+  [{:keys [parameters] :as parameter-set-data} sk-seed sk-prf pk-seed]
+  (let [{:keys [d h' pk-bytes]} parameters
+        adrs (-> (address/new-address)
+                 (address/set-layer-address (dec d)))
+        pk-root (xmss/subtree parameter-set-data sk-seed 0 h' pk-seed adrs)
+        public-key-length (+ (count pk-seed) (count pk-root))]
+    (if (= pk-bytes public-key-length)
+      {:private-key
+       {:sk-seed sk-seed
+        :sk-prf sk-prf
+        :pk-seed pk-seed
+        :pk-root pk-root}
+       :public-key
+       {:pk-seed pk-seed
+        :pk-root pk-root}}
+      (throw (GeneralSecurityException.
+              (format "Public key should have %s bytes, but instead has %s bytes"
+                      pk-bytes
+                      public-key-length))))))
 
 (defn- parse-digest
   [digest {:keys [k a h d]}]
@@ -40,9 +63,10 @@
       (address/set-type-and-clear :fors-tree)
       (address/set-key-pair-address leaf-index)))
 
-(defn sign*
+(defn sign
   [{:keys [parameters functions] :as parameter-set-data} M {:keys [sk-seed sk-prf pk-seed pk-root]} additional-randomness]
-  (let [{:keys [PRF_msg H_msg]} functions
+  (let [{:keys [sig-bytes]} parameters
+        {:keys [PRF_msg H_msg]} functions
         randomizer (PRF_msg sk-prf
                             additional-randomness
                             M)
@@ -67,10 +91,15 @@
                                             sk-seed
                                             pk-seed
                                             tree-index
-                                            leaf-index)]
-    (common/merge-bytes randomizer
-                        fors-signature
-                        hypertree-signature)))
+                                            leaf-index)
+        signature (common/merge-bytes randomizer fors-signature hypertree-signature)
+        signature-length (count signature)]
+    (if (= sig-bytes signature-length)
+      signature
+      (throw (GeneralSecurityException.
+              (format "Something went wrong; mismatch between expected signature length (%s bytes) and actual length (%s bytes)"
+                      sig-bytes
+                      signature-length))))))
 
 (defn- parse-signature
   [signature {:keys [n k a]}]
@@ -80,27 +109,28 @@
      (common/slice-bytes signature first-cut second-cut)
      (common/slice-bytes signature second-cut (alength signature))]))
 
-(defn verify*
+(defn verify
   [{:keys [parameters functions] :as parameter-set-data} M signature {:keys [pk-seed pk-root]}]
-  (let [{:keys [sig-bytes]} parameters
-        _ (common/validate-length! sig-bytes signature)
-        [randomizer fors-signature hypertree-signature] (parse-signature signature parameters)
-        {:keys [H_msg]} functions
-        digest (H_msg randomizer
-                      pk-seed
-                      pk-root
-                      M)
-        [message-digest tree-index leaf-index] (parse-digest digest parameters)
-        fors-adrs (fors-address tree-index leaf-index)
-        fors-public-key (fors/compute-public-key-from-signature parameter-set-data
-                                                                fors-signature
-                                                                message-digest
-                                                                pk-seed
-                                                                fors-adrs)]
-    (hypertree/verify parameter-set-data
-                      fors-public-key
-                      hypertree-signature
-                      pk-seed
-                      tree-index
-                      leaf-index
-                      pk-root)))
+  (let [{:keys [sig-bytes]} parameters]
+    (if (not= sig-bytes (count signature))
+      false
+      (let [[randomizer fors-signature hypertree-signature] (parse-signature signature parameters)
+            {:keys [H_msg]} functions
+            digest (H_msg randomizer
+                          pk-seed
+                          pk-root
+                          M)
+            [message-digest tree-index leaf-index] (parse-digest digest parameters)
+            fors-adrs (fors-address tree-index leaf-index)
+            fors-public-key (fors/compute-public-key-from-signature parameter-set-data
+                                                                    fors-signature
+                                                                    message-digest
+                                                                    pk-seed
+                                                                    fors-adrs)]
+        (hypertree/verify parameter-set-data
+                          fors-public-key
+                          hypertree-signature
+                          pk-seed
+                          tree-index
+                          leaf-index
+                          pk-root)))))

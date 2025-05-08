@@ -21,23 +21,33 @@
                      :slh-dsa-shake-256s
                      :slh-dsa-shake-256f)
                     {:H_msg (fn [randomizer pk-seed pk-root M]
-                              (primitives/shake256 (common/merge-bytes randomizer pk-seed pk-root M) m))
+                              (primitives/shake256
+                               (common/merge-bytes randomizer pk-seed pk-root M)
+                               m))
                      :PRF (fn [pk-seed sk-seed adrs]
-                            (primitives/shake256 (common/merge-bytes pk-seed adrs sk-seed) n))
+                            (primitives/shake256
+                             (common/merge-bytes pk-seed adrs sk-seed)
+                             n))
                      :PRF_msg (fn [sk-prf additional-randomness M]
-                                (primitives/shake256 (common/merge-bytes sk-prf additional-randomness M) n))
+                                (primitives/shake256
+                                 (common/merge-bytes sk-prf additional-randomness M)
+                                 n))
                      :F (fn [pk-seed adrs M_1]
-                          (primitives/shake256 (common/merge-bytes pk-seed adrs M_1) n))
+                          (primitives/shake256
+                           (common/merge-bytes pk-seed adrs M_1)
+                           n))
                      :H (fn [pk-seed adrs M_2]
-                          (primitives/shake256 (common/merge-bytes pk-seed adrs M_2) n))
+                          (primitives/shake256
+                           (common/merge-bytes pk-seed adrs M_2)
+                           n))
                      :T_l (fn [pk-seed adrs M_l]
-                            (primitives/shake256 (common/merge-bytes pk-seed adrs M_l) n))}
+                            (primitives/shake256
+                             (common/merge-bytes pk-seed adrs M_l)
+                             n))}
 
                     (:slh-dsa-sha2-128s
-                     :slh-dsa-sha2-128f)
-                    (throw (UnsupportedOperationException. "Nice game, pretty boy; gtfo"))
-
-                    (:slh-dsa-sha2-192s
+                     :slh-dsa-sha2-128f
+                     :slh-dsa-sha2-192s
                      :slh-dsa-sha2-192f
                      :slh-dsa-sha2-256s
                      :slh-dsa-sha2-256f)

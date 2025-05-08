@@ -1,26 +1,19 @@
 (ns benchmarks.core
   (:require [criterium.core :refer [quick-bench with-progress-reporting]]
             [effective-chainsaw.api :as api]
-            [effective-chainsaw.building-blocks.parameter-sets :as parameter-sets]
-            [effective-chainsaw.internals.randomness :as randomness]))
+            [effective-chainsaw.building-blocks.parameter-sets :as parameter-sets]))
 
 ;; TODO: Consider using test vectors (1 case per group)
 
 (defn- benchmark-key-pair-generation!
   []
   (println "Running benchmark for: `generate-key-pair`.")
-  (doseq [[parameter-set-name {:keys [parameters]}] parameter-sets/parameter-set->parameters]
+  (doseq [parameter-set-name (keys parameter-sets/parameter-set->parameters)]
     (println "Parameter set:" parameter-set-name)
-    (let [n (:n parameters)]
-      (with-progress-reporting
-        (quick-bench (api/generate-key-pair parameter-set-name
-                                            (randomness/random-bytes n)
-                                            (randomness/random-bytes n)
-                                            (randomness/random-bytes n))
-                     :verbose))))
+    (with-progress-reporting
+      (quick-bench (api/generate-key-pair parameter-set-name)
+                   :verbose)))
   (println "Done!"))
-
-; (benchmark-key-pair-generation!)
 
 (def M
   (byte-array
@@ -32,42 +25,30 @@
     0x72 0x61 0x2e]))
 
 (def context
-  (byte-array [0x01 0x02 0x03]))
+  (api/generate-context 3))
 
 (defn- benchmark-signing!
   []
   (println "Running benchmark for: `sign`.")
-  (doseq [[parameter-set-name {:keys [parameters]}] parameter-sets/parameter-set->parameters]
+  (doseq [parameter-set-name (keys parameter-sets/parameter-set->parameters)]
     (println "Parameter set:" parameter-set-name)
-    (let [n (:n parameters)
-          key-pair (api/generate-key-pair parameter-set-name
-                                          (randomness/random-bytes n)
-                                          (randomness/random-bytes n)
-                                          (randomness/random-bytes n))]
+    (let [key-pair (api/generate-key-pair parameter-set-name)]
       (with-progress-reporting
         (quick-bench (api/sign parameter-set-name M context (:private-key key-pair))
                      :verbose))))
   (println "Done!"))
 
-; (benchmark-signing!)
-
 (defn- benchmark-verifying!
   []
   (println "Running benchmark for: `verify`.")
-  (doseq [[parameter-set-name {:keys [parameters]}] parameter-sets/parameter-set->parameters]
+  (doseq [parameter-set-name (keys parameter-sets/parameter-set->parameters)]
     (println "Parameter set:" parameter-set-name)
-    (let [n (:n parameters)
-          key-pair (api/generate-key-pair parameter-set-name
-                                          (randomness/random-bytes n)
-                                          (randomness/random-bytes n)
-                                          (randomness/random-bytes n))
+    (let [key-pair (api/generate-key-pair parameter-set-name)
           signature (api/sign parameter-set-name M context (:private-key key-pair))]
       (with-progress-reporting
         (quick-bench (api/verify parameter-set-name M signature context (:public-key key-pair))
                      :verbose))))
   (println "Done!"))
-
-; (benchmark-verifying!)
 
 (defn- run-benchmarks!
   []
