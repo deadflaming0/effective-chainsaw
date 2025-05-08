@@ -1,4 +1,5 @@
 (ns effective-chainsaw.building-blocks.slh-dsa
+  (:import (java.security GeneralSecurityException))
   (:require [clojure.math :as math]
             [effective-chainsaw.building-blocks.fors :as fors]
             [effective-chainsaw.building-blocks.hypertree :as hypertree]
@@ -58,7 +59,8 @@
 
 (defn sign
   [{:keys [parameters functions] :as parameter-set-data} M {:keys [sk-seed sk-prf pk-seed pk-root]} additional-randomness]
-  (let [{:keys [PRF_msg H_msg]} functions
+  (let [{:keys [sig-bytes]} parameters
+        {:keys [PRF_msg H_msg]} functions
         randomizer (PRF_msg sk-prf
                             additional-randomness
                             M)
@@ -83,10 +85,15 @@
                                             sk-seed
                                             pk-seed
                                             tree-index
-                                            leaf-index)]
-    (common/merge-bytes randomizer
-                        fors-signature
-                        hypertree-signature)))
+                                            leaf-index)
+        signature (common/merge-bytes randomizer fors-signature hypertree-signature)
+        signature-length (count signature)]
+    (if (= sig-bytes signature-length)
+      signature
+      (throw (GeneralSecurityException.
+              (format "Something went wrong; mismatch between expected signature length (%s bytes) and actual length (%s bytes)"
+                      sig-bytes
+                      signature-length))))))
 
 (defn- parse-signature
   [signature {:keys [n k a]}]
