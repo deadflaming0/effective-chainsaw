@@ -1,4 +1,5 @@
 (ns effective-chainsaw.internals.common
+  (:import (java.security GeneralSecurityException))
   (:require [clojure.math :as math]))
 
 (defn merge-bytes
@@ -18,27 +19,20 @@
   [a start end]
   (java.util.Arrays/copyOfRange a start end))
 
-(defn validate-length!
-  [s input]
-  (let [size (if (.isArray (class input))
-               (alength input)
-               (count input))]
-    (if (= size s)
-      input
-      (throw (Exception. (format "Input does not contain %s elements, %s has size %s" s input size))))))
-
 (defn integer->byte-array
+  "Converts an integer x into a byte-array of length n in big endian format."
   [x n]
   (let [ba (byte-array n)]
-    (reduce #(let [idx' (- n 1 %2)
-                   val' (int (mod %1 256))]
-               (aset-byte ba idx' (unchecked-byte val'))
+    (reduce #(let [index' (- n 1 %2)
+                   value' (int (mod %1 256))]
+               (aset-byte ba index' (unchecked-byte value'))
                (.shiftRight (BigInteger. (str %1)) 8))
             (BigInteger. (str x))
             (range n))
     ba))
 
 (defn byte-array->integer
+  "Converts a byte array of any length into an integer."
   [X]
   (reduce #(+ (bit-shift-left %1 8)
               (bit-and %2 0xff))
@@ -55,12 +49,15 @@
   (reduce #(+ (bit-shift-left %1 1) %2) 0 bs))
 
 (defn byte-array->base-2b
-  "Divides X into output-length blocks, each having an integer in the range [0, ..., 2^base - 1].
+  "Divides input into output-length blocks, each having an integer in the range [0, ..., 2^base - 1].
   Used by WOTS+ and FORS; in the former base will be lg_w, whereas in the latter base will be a.
   In FIPS-205 lg_w is 4, and a can be 6, 8, 9, 12, or 14."
-  [X base output-length]
-  (validate-length! (int (math/ceil (/ (* output-length base) 8))) X)
-  (let [X-bits (mapcat byte->bits X)
-        partitioned (partition-all base X-bits)
-        blocks (map bits->integer partitioned)]
-    (take output-length blocks)))
+  [input base output-length]
+  (let [input-length (count input)
+        valid-length? (>= (math/ceil (/ (* output-length base) 8)) input-length)]
+    (if valid-length?
+      (let [input-as-bits (mapcat byte->bits input)
+            partitions (partition-all base input-as-bits)
+            blocks (map bits->integer partitions)]
+        (take output-length blocks))
+      (throw (GeneralSecurityException. "Cannot convert input to base 2^b: length is too small")))))
