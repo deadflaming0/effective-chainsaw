@@ -1,9 +1,11 @@
 (ns effective-chainsaw.api
   (:import (java.security GeneralSecurityException))
-  (:require [effective-chainsaw.building-blocks.parameter-sets :as parameter-sets]
+  (:require [clojure.spec.alpha :as s]
+            [effective-chainsaw.building-blocks.parameter-sets :as parameter-sets]
             [effective-chainsaw.building-blocks.slh-dsa :as slh-dsa]
             [effective-chainsaw.internals.common :as common]
-            [effective-chainsaw.internals.randomness :as randomness]))
+            [effective-chainsaw.internals.randomness :as randomness]
+            [effective-chainsaw.specs :as specs]))
 
 (defn generate-key-pair
   "Generates an SLH-DSA key pair."
@@ -14,6 +16,21 @@
         sk-prf (randomness/random-bytes n)
         pk-seed (randomness/random-bytes n)]
     (slh-dsa/generate-key-pair parameter-set-data sk-seed sk-prf pk-seed)))
+
+(s/fdef generate-key-pair
+  :args (s/cat :parameter-set-name ::specs/parameter-set-name)
+  :ret ::specs/key-pair
+  :fn (fn [{:keys [args ret]}]
+        (let [parameter-set-name (:parameter-set-name args)
+              n (-> (parameter-sets/parameter-set-data parameter-set-name) :parameters :n)
+              pub-key (:public-key ret)
+              pri-key (:private-key ret)]
+          (and (= (count (:sk-seed pri-key)) n)
+               (= (count (:sk-prf pri-key)) n)
+               (= (count (:pk-seed pri-key)) n)
+               (= (count (:pk-root pri-key)) n)
+               (= (:pk-seed pri-key) (:pk-seed pub-key))
+               (= (:pk-root pri-key) (:pk-seed pri-key))))))
 
 (defn export-key-pair!
   []
@@ -32,7 +49,7 @@
       (zero? context-length)
       M
 
-      (<= context-length max-context-length)
+      (<= context-length specs/max-context-length)
       (common/merge-bytes
        (common/integer->byte-array 0 1)
        (common/integer->byte-array context-length 1)
@@ -41,13 +58,23 @@
 
       :else
       (throw (GeneralSecurityException. (format "Context length must be < %s bytes"
-                                                max-context-length))))))
+                                                specs/max-context-length))))))
 
 (defn generate-context
   ([]
-   (generate-context max-context-length))
+   (generate-context specs/max-context-length))
   ([n]
    (randomness/random-bytes n)))
+
+(s/fdef generate-context
+  :args (s/or :without-n (s/cat)
+              :with-n (s/cat :n ::specs/n))
+  :ret ::specs/context
+  :fn (fn [{:keys [args ret]}]
+        (let [ret-length (count ret)]
+          (case (first args)
+            :without-n (= ret-length max-context-length)
+            :with-n (= ret-length (-> args second :n))))))
 
 (defn sign
   "Generates a pure SLH-DSA signature (pre-hash mode is not supported yet)."
@@ -58,6 +85,27 @@
          M' (prepend-context! M context)]
      (slh-dsa/sign parameter-set-data M' private-key additional-randomness))))
 
+(s/fdef sign
+  :args (s/or
+         :deterministic
+         (s/cat :parameter-set-name ::specs/parameter-set-name
+                :M ::specs/message
+                :context ::specs/context
+                :private-key ::specs/private-key)
+         :non-deterministic
+         (s/cat :parameter-set-name ::specs/parameter-set-name
+                :M ::specs/message
+                :context ::specs/context
+                :private-key ::specs/private-key
+                :additional-randomness ::specs/additional-randomness))
+  :ret bytes?
+  :fn (fn [{:keys [args ret]}]
+        (let [parameter-set-name (-> args second :parameter-set-name)
+              sig-bytes (-> (parameter-sets/parameter-set-data parameter-set-name)
+                            :parameters
+                            :sig-bytes)]
+          (= (count ret) sig-bytes))))
+
 (defn verify
   "Verifies a pure SLH-DSA signature (pre-hash mode is not supported yet)."
   [parameter-set-name M signature context public-key]
@@ -65,57 +113,10 @@
         M' (prepend-context! M context)]
     (slh-dsa/verify parameter-set-data M' signature public-key)))
 
-(comment
-  ;; "Talk is cheap. Show me the code."
-
-  ;; Options currently available:
-  ;; - :slh-dsa-shake-128s
-  ;; - :slh-dsa-shake-128f
-  ;; - :slh-dsa-shake-192s
-  ;; - :slh-dsa-shake-192f
-  ;; - :slh-dsa-shake-256s
-  ;; - :slh-dsa-shake-256f
-  ;; Where:
-  ;; - Suffix `s` stands for "relatively small signatures" (slower computation)
-  ;; - Suffix `f` stands for "relatively fast signatures" (faster computation)
-  ;; - SHA2 parameter sets are not available
-
-  (def parameter-set-name :slh-dsa-shake-128s)
-
-  ;; Returns a map of:
-  ;; - :private-key: contains :sk-seed, :sk-prf, :pk-seed, and :pk-root
-  ;; - :public-key: contains :pk-seed and :pk-root
-  ;; Note: all values are byte arrays of length `n` (depends on the chosen parameter set)
-  (def key-pair (generate-key-pair parameter-set-name))
-
-  (def message
-    (.getBytes "Toda família feliz é igual, enquanto que cada família infeliz é infeliz à sua maneira." "UTF-8"))
-
-  ;; Context can be `nil`, and optionally you may provide a size to the context string, though this is seldom used
-  (def context (generate-context))
-
-  (def signature (sign parameter-set-name message context (:private-key key-pair)))
-
-  ;; Signature must verify correctly:
-  (verify parameter-set-name message signature context (:public-key key-pair)) ; true
-
-  ;; If the message is changed...
-  (def changed-message
-    (.getBytes "Changed message...?" "UTF-8"))
-
-  ;; ...the signature verification will fail:
-  (verify parameter-set-name changed-message signature context (:public-key key-pair)) ; false
-
-  ;; If we copy the correct signature but change only a single byte...
-  (def changed-signature
-    (byte-array (concat (butlast signature) [0x01])))
-
-  ;; ...signature verification will also fail:
-  (verify parameter-set-name message changed-signature context (:public-key key-pair)) ; false
-
-  ;; Finally, even if only the context is changed...
-  (def changed-context (generate-context))
-
-  ;; ...the signature verification fails:
-  (verify parameter-set-name message signature changed-context (:public-key key-pair)) ; false
-  )
+(s/fdef verify
+  :args (s/cat :parameter-set-name ::specs/parameter-set-name
+               :M ::specs/message
+               :signature ::specs/signature
+               :context ::specs/context
+               :public-key ::specs/public-key)
+  :ret boolean?)

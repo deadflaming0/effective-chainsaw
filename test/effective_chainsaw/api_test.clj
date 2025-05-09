@@ -1,11 +1,18 @@
 (ns effective-chainsaw.api-test
-  {:clj-kondo/config '{:linters {:refer-all {:level :off}}}}
+  {:clj-kondo/config '{:linters {:refer-all {:level :off}
+                                 :unresolved-symbol {:level :off}}}}
   (:import (java.security GeneralSecurityException))
-  (:require [clojure.string :as string]
+  (:require [clojure.spec.alpha :as s]
+            [clojure.spec.test.alpha :as stest]
+            [clojure.string :as string]
             [clojure.test :refer :all]
+            [clojure.test.check :as tc]
+            [clojure.test.check.generators :as gen]
+            [clojure.test.check.properties :as prop]
             [effective-chainsaw.api :as api]
             [effective-chainsaw.building-blocks.parameter-sets :as parameter-sets]
             [effective-chainsaw.building-blocks.slh-dsa :as slh-dsa]
+            [effective-chainsaw.specs :as specs]
             [test-vectors :as test-vectors]))
 
 (defn- get-parameter-set-name
@@ -74,3 +81,25 @@
                   {:keys [expected-test-passed?]} (:output m)]
               (is (= expected-test-passed?
                      (api/verify parameter-set-name M signature context public-key))))))))))
+
+(deftest lifecycle-test
+  (stest/instrument [`api/generate-key-pair
+                     `api/generate-context
+                     `api/sign
+                     `api/verify])
+  (try
+    (tc/quick-check
+     15 ;; key gen + sig gen + sig ver is slooow, that's why only 15
+     (prop/for-all
+      [parameter-set-name (s/gen ::specs/parameter-set-name)
+       message (s/gen ::specs/message)]
+      (let [{:keys [private-key public-key]} (api/generate-key-pair parameter-set-name)
+            context (gen/generate (s/gen ::specs/context))
+            signature (api/sign parameter-set-name message context private-key)
+            verification-result (api/verify parameter-set-name message signature context public-key)]
+        (is (true? verification-result)))))
+    (finally
+      (stest/unstrument [`api/generate-key-pair
+                         `api/generate-context
+                         `api/sign
+                         `api/verify]))))
