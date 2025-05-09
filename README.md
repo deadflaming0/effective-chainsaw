@@ -9,6 +9,8 @@ A Clojure implementation of [FIPS-205 (SLH-DSA)](https://nvlpubs.nist.gov/nistpu
 ```clojure
 ;; "Talk is cheap. Show me the code."
 
+(require '[effective-chainsaw.api :as api])
+
 ;; Options currently available:
 ;; - :slh-dsa-shake-128s
 ;; - :slh-dsa-shake-128f
@@ -26,52 +28,52 @@ A Clojure implementation of [FIPS-205 (SLH-DSA)](https://nvlpubs.nist.gov/nistpu
 ;; - :private-key: contains :sk-seed, :sk-prf, :pk-seed, and :pk-root
 ;; - :public-key: contains :pk-seed and :pk-root
 ;; Note: all values are byte arrays of length `n` (depends on the chosen parameter set)
-(def key-pair (generate-key-pair parameter-set-name))
+(def key-pair (api/generate-key-pair parameter-set-name))
 
 (def message
   (.getBytes "Toda família feliz é igual, enquanto que cada família infeliz é infeliz à sua maneira." "UTF-8"))
 
 ;; Context can be `nil`, and optionally you may provide a size to the context string, though this is seldom used
-(def context (generate-context))
+(def context (api/generate-context))
 
-(def signature (sign parameter-set-name message context (:private-key key-pair)))
+(def signature (api/sign parameter-set-name message context (:private-key key-pair)))
 
 ;; Signature must verify correctly:
-(verify parameter-set-name
-        message
-        signature
-        context
-        (:public-key key-pair)) ; true
+(api/verify parameter-set-name
+            message
+            signature
+            context
+            (:public-key key-pair)) ; true
 
 ;; If the message is changed...
 (def changed-message
   (.getBytes "Changed message...?" "UTF-8"))
 
 ;; ...the signature verification will fail:
-(verify parameter-set-name
-        changed-message
-        signature
-        context
-        (:public-key key-pair)) ; false
+(api/verify parameter-set-name
+            changed-message
+            signature
+            context
+            (:public-key key-pair)) ; false
 
 ;; If we copy the correct signature but change only a single byte...
 (def changed-signature
   (byte-array (concat (butlast signature) [0x01])))
 
 ;; ...signature verification will also fail:
-(verify parameter-set-name
-        message
-        changed-signature
-        context
-        (:public-key key-pair)) ; false
+(api/verify parameter-set-name
+            message
+            changed-signature
+            context
+            (:public-key key-pair)) ; false
 
 ;; Finally, even if only the context is changed...
-(def changed-context (generate-context))
+(def changed-context (api/generate-context))
 
 ;; ...the signature verification fails:
-(verify parameter-set-name
-        message
-        signature
-        changed-context
-        (:public-key key-pair)) ; false
+(api/verify parameter-set-name
+            message
+            signature
+            changed-context
+            (:public-key key-pair)) ; false
 ```
