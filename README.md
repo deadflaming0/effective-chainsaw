@@ -2,7 +2,11 @@
 
 [![PR Check (Clojure)](https://github.com/deadflaming0/effective-chainsaw/actions/workflows/clojure-pr-check.yaml/badge.svg)](https://github.com/deadflaming0/effective-chainsaw/actions/workflows/clojure-pr-check.yaml)
 
-A Clojure implementation of [FIPS-205 (SLH-DSA)](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.205.pdf). Unreviewed. Do not use this.
+A Clojure implementation of [FIPS-205 (SLH-DSA)](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.205.pdf). Unreviewed. **Do not use this.**
+
+All operations like key generation, signature generation and signature verification work when tested [against official test vectors](https://github.com/deadflaming0/effective-chainsaw/blob/main/test/effective_chainsaw/api_test.clj#L37-L83).
+
+Soon: an (unofficial!) way to import/export key pairs.
 
 ## API
 
