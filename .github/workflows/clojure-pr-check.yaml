@@ -45,7 +45,7 @@ jobs:
         run: clojure -P
 
       - name: Run cljfmt
-        run: cljfmt fix
+        run: cljfmt check
 
       - name: Run clj-kondo (benchmarks)
         run: clj-kondo --lint benchmarks

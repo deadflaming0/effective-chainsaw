@@ -34,10 +34,10 @@
 
       (<= context-length max-context-length)
       (common/merge-bytes
-        (common/integer->byte-array 0 1)
-        (common/integer->byte-array context-length 1)
-        context
-        M)
+       (common/integer->byte-array 0 1)
+       (common/integer->byte-array context-length 1)
+       context
+       M)
 
       :else
       (throw (GeneralSecurityException. (format "Context length must be < %s bytes"
