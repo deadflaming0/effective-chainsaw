@@ -70,6 +70,7 @@ jobs:
           - effective-chainsaw.api-test/generate-key-pair-test
           - effective-chainsaw.api-test/sign-test
           - effective-chainsaw.api-test/verify-test
+          - effective-chainsaw.api-test/lifecycle-test
 
     steps:
       - name: Checkout code
