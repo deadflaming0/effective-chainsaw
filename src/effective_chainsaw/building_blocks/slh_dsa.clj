@@ -64,16 +64,16 @@
       (address/set-key-pair-address leaf-index)))
 
 (defn sign
-  [{:keys [parameters functions] :as parameter-set-data} M {:keys [sk-seed sk-prf pk-seed pk-root]} additional-randomness]
+  [{:keys [parameters functions] :as parameter-set-data} message {:keys [sk-seed sk-prf pk-seed pk-root]} additional-randomness]
   (let [{:keys [sig-bytes]} parameters
         {:keys [PRF_msg H_msg]} functions
         randomizer (PRF_msg sk-prf
                             additional-randomness
-                            M)
+                            message)
         digest (H_msg randomizer
                       pk-seed
                       pk-root
-                      M)
+                      message)
         [message-digest tree-index leaf-index] (parse-digest digest parameters)
         fors-adrs (fors-address tree-index leaf-index)
         fors-signature (fors/sign parameter-set-data
@@ -110,7 +110,7 @@
      (common/slice-bytes signature second-cut (alength signature))]))
 
 (defn verify
-  [{:keys [parameters functions] :as parameter-set-data} M signature {:keys [pk-seed pk-root]}]
+  [{:keys [parameters functions] :as parameter-set-data} message signature {:keys [pk-seed pk-root]}]
   (let [{:keys [sig-bytes]} parameters]
     (if (not= sig-bytes (count signature))
       false
@@ -119,7 +119,7 @@
             digest (H_msg randomizer
                           pk-seed
                           pk-root
-                          M)
+                          message)
             [message-digest tree-index leaf-index] (parse-digest digest parameters)
             fors-adrs (fors-address tree-index leaf-index)
             fors-public-key (fors/compute-public-key-from-signature parameter-set-data

@@ -60,11 +60,11 @@
         (doseq [test-case (:tests test-group)]
           (testing (generate-test-name parameter-set-name test-group test-case)
             (let [m (test-vectors/test-case->normalized-map parameter-set-name :sign test-case)
-                  {:keys [M context private-key additional-randomness]} (:input m)
+                  {:keys [message context private-key additional-randomness]} (:input m)
                   {:keys [expected-signature]} (:output m)
                   signature (if (:deterministic test-group)
-                              (api/sign parameter-set-name M context private-key)
-                              (api/sign parameter-set-name M context private-key additional-randomness))]
+                              (api/sign parameter-set-name message context private-key)
+                              (api/sign parameter-set-name message context private-key additional-randomness))]
               (is (= (seq expected-signature) (seq signature)))))))))
   (testing "throws exception when context string is too long"
     (is (thrown? GeneralSecurityException
@@ -77,10 +77,10 @@
         (doseq [test-case (:tests test-group)]
           (testing (generate-test-name parameter-set-name test-group test-case)
             (let [m (test-vectors/test-case->normalized-map parameter-set-name :verify test-case)
-                  {:keys [M signature context public-key]} (:input m)
+                  {:keys [message signature context public-key]} (:input m)
                   {:keys [expected-test-passed?]} (:output m)]
               (is (= expected-test-passed?
-                     (api/verify parameter-set-name M signature context public-key))))))))))
+                     (api/verify parameter-set-name message signature context public-key))))))))))
 
 (deftest lifecycle-test
   (stest/instrument [`api/generate-key-pair
