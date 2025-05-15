@@ -43,18 +43,18 @@
 (def ^:private max-context-length 255)
 
 (defn- prepend-context!
-  [M context]
+  [message context]
   (let [context-length (count context)]
     (cond
       (zero? context-length)
-      M
+      message
 
       (<= context-length specs/max-context-length)
       (common/merge-bytes
        (common/integer->byte-array 0 1)
        (common/integer->byte-array context-length 1)
        context
-       M)
+       message)
 
       :else
       (throw (GeneralSecurityException. (format "Context length must be < %s bytes"
@@ -78,23 +78,23 @@
 
 (defn sign
   "Generates a pure SLH-DSA signature (pre-hash mode is not supported yet)."
-  ([parameter-set-name M context private-key]
-   (sign parameter-set-name M context private-key (:pk-seed private-key)))
-  ([parameter-set-name M context private-key additional-randomness]
+  ([parameter-set-name message context private-key]
+   (sign parameter-set-name message context private-key (:pk-seed private-key)))
+  ([parameter-set-name message context private-key additional-randomness]
    (let [parameter-set-data (parameter-sets/parameter-set-data parameter-set-name)
-         M' (prepend-context! M context)]
-     (slh-dsa/sign parameter-set-data M' private-key additional-randomness))))
+         message' (prepend-context! message context)]
+     (slh-dsa/sign parameter-set-data message' private-key additional-randomness))))
 
 (s/fdef sign
   :args (s/or
          :deterministic
          (s/cat :parameter-set-name ::specs/parameter-set-name
-                :M ::specs/message
+                :message ::specs/message
                 :context ::specs/context
                 :private-key ::specs/private-key)
          :non-deterministic
          (s/cat :parameter-set-name ::specs/parameter-set-name
-                :M ::specs/message
+                :message ::specs/message
                 :context ::specs/context
                 :private-key ::specs/private-key
                 :additional-randomness ::specs/additional-randomness))
@@ -108,14 +108,14 @@
 
 (defn verify
   "Verifies a pure SLH-DSA signature (pre-hash mode is not supported yet)."
-  [parameter-set-name M signature context public-key]
+  [parameter-set-name message signature context public-key]
   (let [parameter-set-data (parameter-sets/parameter-set-data parameter-set-name)
-        M' (prepend-context! M context)]
-    (slh-dsa/verify parameter-set-data M' signature public-key)))
+        message' (prepend-context! message context)]
+    (slh-dsa/verify parameter-set-data message' signature public-key)))
 
 (s/fdef verify
   :args (s/cat :parameter-set-name ::specs/parameter-set-name
-               :M ::specs/message
+               :message ::specs/message
                :signature ::specs/signature
                :context ::specs/context
                :public-key ::specs/public-key)

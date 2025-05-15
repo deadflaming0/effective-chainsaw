@@ -85,14 +85,14 @@
                 :expected-public-key (pk->public-key (:pk test-case) n)}}
 
       :sign
-      {:input {:M (hexadecimal-string->byte-array (:message test-case))
+      {:input {:message (hexadecimal-string->byte-array (:message test-case))
                :context (hexadecimal-string->byte-array (:context test-case))
                :private-key (sk->private-key (:sk test-case) n)
                :additional-randomness (hexadecimal-string->byte-array (:additionalRandomness test-case))}
        :output {:expected-signature (hexadecimal-string->byte-array (:signature test-case))}}
 
       :verify
-      {:input {:M (hexadecimal-string->byte-array (:message test-case))
+      {:input {:message (hexadecimal-string->byte-array (:message test-case))
                :signature (hexadecimal-string->byte-array (:signature test-case))
                :context (hexadecimal-string->byte-array (:context test-case))
                :public-key (pk->public-key (:pk test-case) n)}
